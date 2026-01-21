@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { 
-  Plus, Terminal, Zap, Wand2, User, Settings, Play, Infinity, 
-  ShoppingBag, Eye, ChevronDown, Youtube, FileText, Sparkles, 
-  Image, Video, Clock, RefreshCw, Check, Palette, BarChart3, 
+import {
+  Plus, Terminal, Zap, Wand2, User, Settings, Play, Infinity,
+  ShoppingBag, Eye, ChevronDown, Youtube, FileText, Sparkles,
+  Image, Video, Clock, RefreshCw, Check, Palette, BarChart3,
   Pencil, Stars, Link, Radio, Tv, Mic, Globe, Save
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -31,15 +31,15 @@ type MovementOption = "static" | "minimal" | "active";
 const VeoflowPanel = () => {
   // Tab state for smooth transitions
   const [activeTab, setActiveTab] = useState("create");
-  
+
   // Settings Dialog state
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
-  
+
   // Product Data (TikTok Tab)
   const [productId, setProductId] = useState("");
   const [productName, setProductName] = useState("");
   const [characterImages, setCharacterImages] = useState<(string | null)[]>([null, null]);
-  
+
   // AI Scripting
   const [useAiScript, setUseAiScript] = useState(true);
   const [productReviewMode, setProductReviewMode] = useState(true);
@@ -52,7 +52,7 @@ const VeoflowPanel = () => {
   const [ctaText, setCtaText] = useState("");
   const [hookEnabled, setHookEnabled] = useState(true);
   const [ctaEnabled, setCtaEnabled] = useState(true);
-  
+
   // AI Character & Style
   const [gender, setGender] = useState<GenderOption>("female");
   const [emotionSync, setEmotionSync] = useState<EmotionSyncOption>("natural");
@@ -66,13 +66,13 @@ const VeoflowPanel = () => {
   const [expression, setExpression] = useState<ExpressionOption>("neutral");
   const [cameraAngles, setCameraAngles] = useState<CameraAngleOption[]>(["front"]);
   const [movement, setMovement] = useState<MovementOption>("minimal");
-  
+
   // Generation Settings
   const [clipCount, setClipCount] = useState<ClipCountOption>(50);
   const [aspectRatio, setAspectRatio] = useState<AspectRatioOption>("9:16");
   const [videoDuration, setVideoDuration] = useState<VideoDurationOption>("short");
   const [restInterval, setRestInterval] = useState<RestIntervalOption>("30s");
-  
+
   // Posting Settings
   const [autoPostTikTok, setAutoPostTikTok] = useState(true);
   const [autoPostYoutube, setAutoPostYoutube] = useState(false);
@@ -85,7 +85,7 @@ const VeoflowPanel = () => {
   const [productionOpen, setProductionOpen] = useState(true);
   const [productDataOpen, setProductDataOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(true);
-  
+
   // TikTok Tab - synced products
   const [syncedProducts] = useState([
     { id: "1729384756", name: "ครีมกันแดด SPF50+", image: true },
@@ -95,7 +95,7 @@ const VeoflowPanel = () => {
 
   const clipCountOptions: ClipCountOption[] = [5, 10, 25, 50, 100, "unlimited"];
   const restIntervalOptions: RestIntervalOption[] = ["30s", "1m", "2m", "5m", "10m"];
-  
+
   const saleStyleOptions: { value: SaleStyleOption; label: string }[] = [
     { value: "hard", label: "ขายตรง" },
     { value: "soft", label: "ขายอ่อน" },
@@ -154,20 +154,20 @@ const VeoflowPanel = () => {
     input.click();
   };
 
-  const SectionHeader = ({ 
-    icon: Icon, 
-    title, 
-    isOpen, 
-    onToggle, 
-    badge 
-  }: { 
-    icon: React.ElementType; 
-    title: string; 
-    isOpen: boolean; 
+  const SectionHeader = ({
+    icon: Icon,
+    title,
+    isOpen,
+    onToggle,
+    badge
+  }: {
+    icon: React.ElementType;
+    title: string;
+    isOpen: boolean;
     onToggle: () => void;
     badge?: string;
   }) => (
-    <button 
+    <button
       onClick={onToggle}
       className="w-full flex items-center justify-between py-2"
     >
@@ -202,13 +202,13 @@ const VeoflowPanel = () => {
           <button className="p-1.5 rounded-lg hover:bg-muted transition-colors">
             <RefreshCw className="w-4 h-4 text-muted-foreground" />
           </button>
-          <button 
+          <button
             onClick={() => setSettingsDialogOpen(true)}
             className="p-1.5 rounded-lg hover:bg-muted transition-colors"
           >
             <Settings className="w-4 h-4 text-muted-foreground" />
           </button>
-          
+
           {/* Settings Dialog */}
           <SettingsDialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen} />
         </div>
@@ -217,22 +217,22 @@ const VeoflowPanel = () => {
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full h-auto p-0 bg-transparent rounded-none border-b border-border">
-          <TabsTrigger 
-            value="create" 
+          <TabsTrigger
+            value="create"
             className="flex-1 py-3 px-2 rounded-none border-b-2 border-transparent data-[state=active]:border-neon-red data-[state=active]:bg-transparent data-[state=active]:text-neon-red data-[state=active]:shadow-none text-muted-foreground text-xs font-medium transition-all duration-200"
           >
             <Wand2 className="w-3 h-3 mr-1.5" />
             สร้างวิดีโอ
           </TabsTrigger>
-          <TabsTrigger 
-            value="netcast" 
+          <TabsTrigger
+            value="netcast"
             className="flex-1 py-3 px-2 rounded-none border-b-2 border-transparent data-[state=active]:border-neon-red data-[state=active]:bg-transparent data-[state=active]:text-neon-red data-[state=active]:shadow-none text-muted-foreground text-xs font-medium transition-all duration-200"
           >
             <Radio className="w-3 h-3 mr-1.5" />
             NetCast Pro
           </TabsTrigger>
-          <TabsTrigger 
-            value="tiktok" 
+          <TabsTrigger
+            value="tiktok"
             className="flex-1 py-3 px-2 rounded-none border-b-2 border-transparent data-[state=active]:border-neon-red data-[state=active]:bg-transparent data-[state=active]:text-neon-red data-[state=active]:shadow-none text-muted-foreground text-xs font-medium transition-all duration-200"
           >
             <ShoppingBag className="w-3 h-3 mr-1.5" />
@@ -242,18 +242,18 @@ const VeoflowPanel = () => {
 
         {/* Create Video Tab */}
         <TabsContent value="create" className="p-4 space-y-3 mt-0 data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:slide-in-from-left-2 data-[state=inactive]:animate-out data-[state=inactive]:fade-out-0 duration-200">
-          
+
           {/* AI Scripting Section */}
           <section className="glass-card overflow-hidden">
             <div className="px-4 pt-3">
-              <SectionHeader 
-                icon={FileText} 
-                title="สคริปต์ AI" 
+              <SectionHeader
+                icon={FileText}
+                title="สคริปต์ AI"
                 isOpen={aiScriptOpen}
                 onToggle={() => setAiScriptOpen(!aiScriptOpen)}
               />
             </div>
-            
+
             {aiScriptOpen && (
               <div className="px-4 pb-4 space-y-4">
                 {/* Script Type Toggle - AI vs Manual */}
@@ -264,22 +264,20 @@ const VeoflowPanel = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={() => setUseAiScript(true)}
-                      className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2 ${
-                        useAiScript 
-                          ? 'bg-neon-red text-white' 
+                      className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2 ${useAiScript
+                          ? 'bg-neon-red text-white'
                           : 'bg-muted text-muted-foreground border border-border'
-                      }`}
+                        }`}
                     >
                       <Stars className="w-4 h-4" />
                       AI สร้างอัตโนมัติ
                     </button>
                     <button
                       onClick={() => setUseAiScript(false)}
-                      className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2 ${
-                        !useAiScript 
-                          ? 'bg-neon-red text-white' 
+                      className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2 ${!useAiScript
+                          ? 'bg-neon-red text-white'
                           : 'bg-muted text-muted-foreground border border-border'
-                      }`}
+                        }`}
                     >
                       <Pencil className="w-4 h-4" />
                       เขียนเอง
@@ -292,7 +290,7 @@ const VeoflowPanel = () => {
                   <label className="text-xs text-muted-foreground mb-2 block">
                     เทมเพลตสคริปต์
                   </label>
-                  <select 
+                  <select
                     value={template}
                     onChange={(e) => setTemplate(e.target.value as TemplateOption)}
                     className="w-full neon-select"
@@ -332,7 +330,7 @@ const VeoflowPanel = () => {
                       <Mic className="w-3 h-3" />
                       น้ำเสียง & อารมณ์
                     </label>
-                    <select 
+                    <select
                       value={voiceTone}
                       onChange={(e) => setVoiceTone(e.target.value as VoiceToneOption)}
                       disabled={isAiMode}
@@ -349,7 +347,7 @@ const VeoflowPanel = () => {
                     <label className={`text-xs mb-1.5 block flex items-center gap-1 ${isAiMode ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
                       พลังสูง
                     </label>
-                    <select 
+                    <select
                       value={saleStyle}
                       onChange={(e) => setSaleStyle(e.target.value as SaleStyleOption)}
                       disabled={isAiMode}
@@ -371,7 +369,7 @@ const VeoflowPanel = () => {
                       <Globe className="w-3 h-3" />
                       ภาษา
                     </label>
-                    <select 
+                    <select
                       value={language}
                       onChange={(e) => setLanguage(e.target.value as LanguageOption)}
                       className="w-full neon-select"
@@ -387,7 +385,7 @@ const VeoflowPanel = () => {
                     <label className={`text-xs mb-1.5 block flex items-center gap-1 ${isAiMode ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
                       สำเนียง/ภาษาถิ่น
                     </label>
-                    <select 
+                    <select
                       disabled={isAiMode}
                       className={`w-full neon-select ${isAiMode ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
@@ -402,8 +400,8 @@ const VeoflowPanel = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <div className="flex items-center gap-2 mb-1.5">
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={hookEnabled}
                         onChange={(e) => setHookEnabled(e.target.checked)}
                         disabled={isAiMode}
@@ -424,8 +422,8 @@ const VeoflowPanel = () => {
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1.5">
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={ctaEnabled}
                         onChange={(e) => setCtaEnabled(e.target.checked)}
                         disabled={isAiMode}
@@ -478,14 +476,14 @@ const VeoflowPanel = () => {
           {/* Character & Style Section */}
           <section className="glass-card overflow-hidden">
             <div className="px-4 pt-3">
-              <SectionHeader 
-                icon={User} 
-                title="ตัวละคร & สไตล์" 
+              <SectionHeader
+                icon={User}
+                title="ตัวละคร & สไตล์"
                 isOpen={characterOpen}
                 onToggle={() => setCharacterOpen(!characterOpen)}
               />
             </div>
-            
+
             {characterOpen && (
               <div className="px-4 pb-4 space-y-4">
                 {/* Gender Selection */}
@@ -497,21 +495,19 @@ const VeoflowPanel = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={() => setGender("male")}
-                      className={`flex-1 py-2.5 rounded-full text-xs font-medium transition-all flex items-center justify-center gap-2 ${
-                        gender === "male" 
-                          ? 'bg-muted border border-border text-foreground' 
+                      className={`flex-1 py-2.5 rounded-full text-xs font-medium transition-all flex items-center justify-center gap-2 ${gender === "male"
+                          ? 'bg-muted border border-border text-foreground'
                           : 'bg-muted/50 text-muted-foreground border border-transparent'
-                      }`}
+                        }`}
                     >
                       <span className="text-base">♂</span> ชาย
                     </button>
                     <button
                       onClick={() => setGender("female")}
-                      className={`flex-1 py-2.5 rounded-full text-xs font-medium transition-all flex items-center justify-center gap-2 ${
-                        gender === "female" 
-                          ? 'bg-neon-red text-white' 
+                      className={`flex-1 py-2.5 rounded-full text-xs font-medium transition-all flex items-center justify-center gap-2 ${gender === "female"
+                          ? 'bg-neon-red text-white'
                           : 'bg-muted/50 text-muted-foreground border border-transparent'
-                      }`}
+                        }`}
                     >
                       <span className="text-base">♀</span> หญิง
                     </button>
@@ -550,7 +546,7 @@ const VeoflowPanel = () => {
                     <User className="w-3 h-3 text-neon-red" />
                     ช่วงอายุ
                   </label>
-                  <select 
+                  <select
                     value={ageRange}
                     onChange={(e) => setAgeRange(e.target.value as AgeRangeOption)}
                     className="w-full neon-select text-xs"
@@ -569,7 +565,7 @@ const VeoflowPanel = () => {
                     <Sparkles className="w-3 h-3 text-neon-red" />
                     บุคลิกตัวละคร
                   </label>
-                  <select 
+                  <select
                     value={personality}
                     onChange={(e) => setPersonality(e.target.value as PersonalityOption)}
                     className="w-full neon-select text-xs"
@@ -590,8 +586,8 @@ const VeoflowPanel = () => {
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {[
-                      { value: "casual", label: "กางเกง" },
-                      { value: "formal", label: "ตำลอง" },
+                      { value: "casual", label: "ลำลอง" },
+                      { value: "formal", label: "ทางการ" },
                       { value: "fashion", label: "แฟชั่น" },
                       { value: "sporty", label: "กีฬา" },
                     ].map((style) => (
@@ -604,11 +600,10 @@ const VeoflowPanel = () => {
                             setClothingStyles([...clothingStyles, style.value as ClothingStyleOption]);
                           }
                         }}
-                        className={`px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
-                          clothingStyles.includes(style.value as ClothingStyleOption)
-                            ? 'bg-neon-red text-white' 
+                        className={`px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${clothingStyles.includes(style.value as ClothingStyleOption)
+                            ? 'bg-neon-red text-white'
                             : 'bg-muted text-muted-foreground border border-border hover:border-neon-red/50'
-                        }`}
+                          }`}
                       >
                         <Check className={`w-3 h-3 ${clothingStyles.includes(style.value as ClothingStyleOption) ? 'opacity-100' : 'opacity-0'}`} />
                         {style.label}
@@ -623,7 +618,7 @@ const VeoflowPanel = () => {
                     <Image className="w-3 h-3 text-neon-red" />
                     ฉากหลัง
                   </label>
-                  <select 
+                  <select
                     value={background}
                     onChange={(e) => setBackground(e.target.value as BackgroundOption)}
                     className="w-full neon-select text-xs"
@@ -642,7 +637,7 @@ const VeoflowPanel = () => {
                     <Mic className="w-3 h-3 text-neon-red" />
                     การตั้งค่าเสียง
                   </label>
-                  <select 
+                  <select
                     value={voiceSetting}
                     onChange={(e) => setVoiceSetting(e.target.value as VoiceSettingOption)}
                     className="w-full neon-select text-xs"
@@ -666,13 +661,12 @@ const VeoflowPanel = () => {
                         <button
                           key={level}
                           onClick={() => setTouchLevel(level)}
-                          className={`flex-1 h-2 rounded-full transition-all ${
-                            (level === "low" && (touchLevel === "low" || touchLevel === "medium" || touchLevel === "high")) ||
-                            (level === "medium" && (touchLevel === "medium" || touchLevel === "high")) ||
-                            (level === "high" && touchLevel === "high")
-                              ? 'bg-neon-red' 
+                          className={`flex-1 h-2 rounded-full transition-all ${(level === "low" && (touchLevel === "low" || touchLevel === "medium" || touchLevel === "high")) ||
+                              (level === "medium" && (touchLevel === "medium" || touchLevel === "high")) ||
+                              (level === "high" && touchLevel === "high")
+                              ? 'bg-neon-red'
                               : 'bg-muted'
-                          }`}
+                            }`}
                         />
                       ))}
                     </div>
@@ -688,18 +682,17 @@ const VeoflowPanel = () => {
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {[
-                      { value: "neutral", label: "ดั้น" },
+                      { value: "neutral", label: "นิ่ง" },
                       { value: "happy", label: "ยิ้มแฉ่ง" },
                       { value: "excited", label: "ตื่นเต้น" },
                     ].map((exp) => (
                       <button
                         key={exp.value}
                         onClick={() => setExpression(exp.value as ExpressionOption)}
-                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
-                          expression === exp.value
-                            ? 'bg-neon-red text-white' 
+                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${expression === exp.value
+                            ? 'bg-neon-red text-white'
                             : 'bg-muted text-muted-foreground border border-border'
-                        }`}
+                          }`}
                       >
                         {exp.label}
                       </button>
@@ -711,15 +704,15 @@ const VeoflowPanel = () => {
                 <div>
                   <label className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
                     <Video className="w-3 h-3 text-neon-red" />
-                    การตรวจสอบออก
+                    มุมกล้อง
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {[
-                      { value: "front", label: "ด้น" },
-                      { value: "side", label: "อมข" },
-                      { value: "close-up", label: "เขยก" },
-                      { value: "full-body", label: "ค่อน" },
-                      { value: "dynamic", label: "บางก" },
+                      { value: "front", label: "ด้านหน้า" },
+                      { value: "side", label: "ด้านข้าง" },
+                      { value: "close-up", label: "ใกล้ชิด" },
+                      { value: "full-body", label: "ทั้งตัว" },
+                      { value: "dynamic", label: "เคลื่อนไหว" },
                     ].map((angle) => (
                       <button
                         key={angle.value}
@@ -730,11 +723,10 @@ const VeoflowPanel = () => {
                             setCameraAngles([...cameraAngles, angle.value as CameraAngleOption]);
                           }
                         }}
-                        className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                          cameraAngles.includes(angle.value as CameraAngleOption)
-                            ? 'bg-neon-red text-white' 
+                        className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${cameraAngles.includes(angle.value as CameraAngleOption)
+                            ? 'bg-neon-red text-white'
                             : 'bg-muted text-muted-foreground border border-border'
-                        }`}
+                          }`}
                       >
                         {angle.label}
                       </button>
@@ -750,17 +742,16 @@ const VeoflowPanel = () => {
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {[
-                      { value: "static", label: "คำลองกา" },
-                      { value: "minimal", label: "น้ำกลาง" },
+                      { value: "static", label: "นิ่ง" },
+                      { value: "minimal", label: "ปานกลาง" },
                     ].map((mov) => (
                       <button
                         key={mov.value}
                         onClick={() => setMovement(mov.value as MovementOption)}
-                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
-                          movement === mov.value
-                            ? 'bg-neon-red text-white' 
+                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${movement === mov.value
+                            ? 'bg-neon-red text-white'
                             : 'bg-muted text-muted-foreground border border-border'
-                        }`}
+                          }`}
                       >
                         {mov.label}
                       </button>
@@ -769,21 +760,19 @@ const VeoflowPanel = () => {
                   <div className="flex gap-2 mt-2">
                     <button
                       onClick={() => setMovement("static")}
-                      className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all border ${
-                        movement === "static"
-                          ? 'border-neon-red text-neon-red bg-neon-red/10' 
+                      className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all border ${movement === "static"
+                          ? 'border-neon-red text-neon-red bg-neon-red/10'
                           : 'border-border text-muted-foreground bg-muted/30'
-                      }`}
+                        }`}
                     >
                       นิ่งเฉยไม่ขยับ
                     </button>
                     <button
                       onClick={() => setMovement("active")}
-                      className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all border ${
-                        movement === "active"
-                          ? 'border-neon-red text-neon-red bg-neon-red/10' 
+                      className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all border ${movement === "active"
+                          ? 'border-neon-red text-neon-red bg-neon-red/10'
                           : 'border-border text-muted-foreground bg-muted/30'
-                      }`}
+                        }`}
                     >
                       เคลื่อนไหวมาก
                     </button>
@@ -803,14 +792,14 @@ const VeoflowPanel = () => {
           {/* Product Data Section */}
           <section className="glass-card overflow-hidden">
             <div className="px-4 pt-3">
-              <SectionHeader 
-                icon={ShoppingBag} 
-                title="ข้อมูลสินค้า" 
+              <SectionHeader
+                icon={ShoppingBag}
+                title="ข้อมูลสินค้า"
                 isOpen={qualityOpen}
                 onToggle={() => setQualityOpen(!qualityOpen)}
               />
             </div>
-            
+
             {qualityOpen && (
               <div className="px-4 pb-4 space-y-4">
                 {/* Product ID */}
@@ -876,14 +865,14 @@ const VeoflowPanel = () => {
           {/* Production & Preview Section */}
           <section className="glass-card overflow-hidden">
             <div className="px-4 pt-3">
-              <SectionHeader 
-                icon={Video} 
-                title="การผลิตและพรีวิว" 
+              <SectionHeader
+                icon={Video}
+                title="การผลิตและพรีวิว"
                 isOpen={productionOpen}
                 onToggle={() => setProductionOpen(!productionOpen)}
               />
             </div>
-            
+
             {productionOpen && (
               <div className="px-4 pb-4 space-y-4">
                 {/* Aspect Ratio */}
@@ -894,11 +883,10 @@ const VeoflowPanel = () => {
                   <div className="flex gap-3">
                     <button
                       onClick={() => setAspectRatio("9:16")}
-                      className={`flex-1 py-3 px-4 rounded-xl flex flex-col items-center gap-2 transition-all ${
-                        aspectRatio === "9:16" 
-                          ? 'bg-neon-red text-white' 
+                      className={`flex-1 py-3 px-4 rounded-xl flex flex-col items-center gap-2 transition-all ${aspectRatio === "9:16"
+                          ? 'bg-neon-red text-white'
                           : 'bg-muted border border-border text-muted-foreground'
-                      }`}
+                        }`}
                     >
                       <div className="w-4 h-7 border-2 border-current rounded-sm"></div>
                       <span className="text-[10px]">แนวตั้ง 9:16</span>
@@ -906,11 +894,10 @@ const VeoflowPanel = () => {
                     </button>
                     <button
                       onClick={() => setAspectRatio("16:9")}
-                      className={`flex-1 py-3 px-4 rounded-xl flex flex-col items-center gap-2 transition-all ${
-                        aspectRatio === "16:9" 
-                          ? 'bg-neon-red text-white' 
+                      className={`flex-1 py-3 px-4 rounded-xl flex flex-col items-center gap-2 transition-all ${aspectRatio === "16:9"
+                          ? 'bg-neon-red text-white'
                           : 'bg-muted border border-border text-muted-foreground'
-                      }`}
+                        }`}
                     >
                       <div className="w-7 h-4 border-2 border-current rounded-sm"></div>
                       <span className="text-[10px]">แนวนอน 16:9</span>
@@ -927,20 +914,18 @@ const VeoflowPanel = () => {
                     <div className="flex items-center bg-background rounded-xl border border-border overflow-hidden">
                       <button
                         onClick={() => setAutoPostTikTok(!autoPostTikTok)}
-                        className={`flex-1 flex items-center justify-center py-3 px-4 transition-all ${
-                          autoPostTikTok ? 'text-white' : 'text-muted-foreground'
-                        }`}
+                        className={`flex-1 flex items-center justify-center py-3 px-4 transition-all ${autoPostTikTok ? 'text-white' : 'text-muted-foreground'
+                          }`}
                       >
                         <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                          <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
                         </svg>
                       </button>
                       <div className="w-px h-8 bg-border"></div>
                       <button
                         onClick={() => setAutoPostYoutube(!autoPostYoutube)}
-                        className={`flex-1 flex items-center justify-center py-3 px-4 transition-all ${
-                          autoPostYoutube ? 'text-white' : 'text-muted-foreground'
-                        }`}
+                        className={`flex-1 flex items-center justify-center py-3 px-4 transition-all ${autoPostYoutube ? 'text-white' : 'text-muted-foreground'
+                          }`}
                       >
                         <Youtube className="w-6 h-6" />
                       </button>
@@ -962,14 +947,14 @@ const VeoflowPanel = () => {
           {/* Generation Settings */}
           <section className="glass-card overflow-hidden">
             <div className="px-4 pt-3">
-              <SectionHeader 
-                icon={Settings} 
-                title="การตั้งค่าการสร้าง" 
+              <SectionHeader
+                icon={Settings}
+                title="การตั้งค่าการสร้าง"
                 isOpen={settingsOpen}
                 onToggle={() => setSettingsOpen(!settingsOpen)}
               />
             </div>
-            
+
             {settingsOpen && (
               <div className="px-4 pb-4 space-y-4">
                 {/* Clip Count */}
@@ -982,9 +967,8 @@ const VeoflowPanel = () => {
                       <button
                         key={option}
                         onClick={() => setClipCount(option)}
-                        className={`pill-button ${
-                          clipCount === option ? "pill-button-active" : "pill-button-inactive"
-                        }`}
+                        className={`pill-button ${clipCount === option ? "pill-button-active" : "pill-button-inactive"
+                          }`}
                       >
                         {option === "unlimited" ? (
                           <span className="flex items-center gap-1">
@@ -1004,7 +988,7 @@ const VeoflowPanel = () => {
                     <label className="text-xs text-muted-foreground mb-2 block">
                       ความยาว
                     </label>
-                    <select 
+                    <select
                       value={videoDuration}
                       onChange={(e) => setVideoDuration(e.target.value as VideoDurationOption)}
                       className="w-full neon-select text-xs"
@@ -1018,7 +1002,7 @@ const VeoflowPanel = () => {
                     <label className="text-xs text-muted-foreground mb-2 block">
                       ระยะเวลา (Delay)
                     </label>
-                    <select 
+                    <select
                       value={restInterval}
                       onChange={(e) => setRestInterval(e.target.value as RestIntervalOption)}
                       className="w-full neon-select text-xs"
@@ -1081,9 +1065,8 @@ const VeoflowPanel = () => {
               {logs.map((log, index) => (
                 <div
                   key={index}
-                  className={`${
-                    log.includes("สำเร็จ") ? "text-green-500" : "text-muted-foreground"
-                  }`}
+                  className={`${log.includes("สำเร็จ") ? "text-green-500" : "text-muted-foreground"
+                    }`}
                 >
                   {log}
                 </div>
@@ -1114,9 +1097,9 @@ const VeoflowPanel = () => {
           {/* Smart Character Settings */}
           <section className="glass-card overflow-hidden">
             <div className="px-4 pt-3">
-              <SectionHeader 
-                icon={User} 
-                title="ตั้งค่าตัวละครอัจฉริยะ" 
+              <SectionHeader
+                icon={User}
+                title="ตั้งค่าตัวละครอัจฉริยะ"
                 isOpen={characterOpen}
                 onToggle={() => setCharacterOpen(!characterOpen)}
                 badge="HOT"
@@ -1126,7 +1109,7 @@ const VeoflowPanel = () => {
               <div className="px-4 pb-4 space-y-4">
                 {/* Avatar Upload */}
                 <div className="flex items-center gap-3">
-                  <button 
+                  <button
                     className="w-20 h-24 rounded-xl border-2 border-dashed border-neon-red bg-muted/30 flex flex-col items-center justify-center gap-1 hover:bg-neon-red/5 transition-all"
                   >
                     <Plus className="w-5 h-5 text-neon-red" />
@@ -1147,11 +1130,10 @@ const VeoflowPanel = () => {
                     {["TH", "EN", "CH", "JP"].map((lang, idx) => (
                       <button
                         key={lang}
-                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
-                          idx === 0 
-                            ? 'bg-neon-red text-white' 
+                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${idx === 0
+                            ? 'bg-neon-red text-white'
                             : 'bg-muted text-muted-foreground border border-border'
-                        }`}
+                          }`}
                       >
                         {lang}
                       </button>
@@ -1166,9 +1148,9 @@ const VeoflowPanel = () => {
           {/* Quality & Emotion Control */}
           <section className="glass-card overflow-hidden">
             <div className="px-4 pt-3">
-              <SectionHeader 
-                icon={Palette} 
-                title="ควบคุมภาพและอารมณ์" 
+              <SectionHeader
+                icon={Palette}
+                title="ควบคุมภาพและอารมณ์"
                 isOpen={qualityOpen}
                 onToggle={() => setQualityOpen(!qualityOpen)}
               />
@@ -1191,11 +1173,10 @@ const VeoflowPanel = () => {
                     {["เป็นปกติ", "ร้อนรุ่ง", "เย็นชานุ่ม"].map((opt, idx) => (
                       <button
                         key={opt}
-                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
-                          idx === 0 
-                            ? 'bg-neon-red text-white' 
+                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${idx === 0
+                            ? 'bg-neon-red text-white'
                             : 'bg-muted text-muted-foreground border border-border'
-                        }`}
+                          }`}
                       >
                         {opt}
                       </button>
@@ -1210,11 +1191,10 @@ const VeoflowPanel = () => {
                     {["เบลอโปร่ง", "โทนสี/ไวโบ", "ไม่เปลี่ยน"].map((opt, idx) => (
                       <button
                         key={opt}
-                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
-                          idx === 0 
-                            ? 'bg-neon-red text-white' 
+                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${idx === 0
+                            ? 'bg-neon-red text-white'
                             : 'bg-muted text-muted-foreground border border-border'
-                        }`}
+                          }`}
                       >
                         {opt}
                       </button>
@@ -1257,7 +1237,7 @@ const VeoflowPanel = () => {
               </div>
               <span className="text-[10px] text-muted-foreground">สำหรับเชื่อมต่อ TikTok Shop</span>
             </div>
-            
+
             {/* Sync Button */}
             <button className="w-full py-3 rounded-xl font-medium text-white bg-neon-red hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
               <RefreshCw className="w-4 h-4" />
@@ -1326,14 +1306,14 @@ const VeoflowPanel = () => {
           {/* Product Data Card */}
           <section className="glass-card overflow-hidden">
             <div className="px-4 pt-3">
-              <SectionHeader 
-                icon={ShoppingBag} 
-                title="ข้อมูลสินค้า" 
+              <SectionHeader
+                icon={ShoppingBag}
+                title="ข้อมูลสินค้า"
                 isOpen={productDataOpen}
                 onToggle={() => setProductDataOpen(!productDataOpen)}
               />
             </div>
-            
+
             {productDataOpen && (
               <div className="px-4 pb-4 space-y-4">
                 <div>
