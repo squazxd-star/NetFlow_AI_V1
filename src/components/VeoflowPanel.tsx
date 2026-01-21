@@ -265,8 +265,8 @@ const VeoflowPanel = () => {
                     <button
                       onClick={() => setUseAiScript(true)}
                       className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2 ${useAiScript
-                          ? 'bg-neon-red text-white'
-                          : 'bg-muted text-muted-foreground border border-border'
+                        ? 'bg-neon-red text-white'
+                        : 'bg-muted text-muted-foreground border border-border'
                         }`}
                     >
                       <Stars className="w-4 h-4" />
@@ -275,8 +275,8 @@ const VeoflowPanel = () => {
                     <button
                       onClick={() => setUseAiScript(false)}
                       className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2 ${!useAiScript
-                          ? 'bg-neon-red text-white'
-                          : 'bg-muted text-muted-foreground border border-border'
+                        ? 'bg-neon-red text-white'
+                        : 'bg-muted text-muted-foreground border border-border'
                         }`}
                     >
                       <Pencil className="w-4 h-4" />
@@ -345,7 +345,8 @@ const VeoflowPanel = () => {
                   </div>
                   <div>
                     <label className={`text-xs mb-1.5 block flex items-center gap-1 ${isAiMode ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
-                      พลังสูง
+                      <Zap className="w-3 h-3" />
+                      ระดับพลังงาน
                     </label>
                     <select
                       value={saleStyle}
@@ -496,8 +497,8 @@ const VeoflowPanel = () => {
                     <button
                       onClick={() => setGender("male")}
                       className={`flex-1 py-2.5 rounded-full text-xs font-medium transition-all flex items-center justify-center gap-2 ${gender === "male"
-                          ? 'bg-muted border border-border text-foreground'
-                          : 'bg-muted/50 text-muted-foreground border border-transparent'
+                        ? 'bg-muted border border-border text-foreground'
+                        : 'bg-muted/50 text-muted-foreground border border-transparent'
                         }`}
                     >
                       <span className="text-base">♂</span> ชาย
@@ -505,8 +506,8 @@ const VeoflowPanel = () => {
                     <button
                       onClick={() => setGender("female")}
                       className={`flex-1 py-2.5 rounded-full text-xs font-medium transition-all flex items-center justify-center gap-2 ${gender === "female"
-                          ? 'bg-neon-red text-white'
-                          : 'bg-muted/50 text-muted-foreground border border-transparent'
+                        ? 'bg-neon-red text-white'
+                        : 'bg-muted/50 text-muted-foreground border border-transparent'
                         }`}
                     >
                       <span className="text-base">♀</span> หญิง
@@ -601,8 +602,8 @@ const VeoflowPanel = () => {
                           }
                         }}
                         className={`px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${clothingStyles.includes(style.value as ClothingStyleOption)
-                            ? 'bg-neon-red text-white'
-                            : 'bg-muted text-muted-foreground border border-border hover:border-neon-red/50'
+                          ? 'bg-neon-red text-white'
+                          : 'bg-muted text-muted-foreground border border-border hover:border-neon-red/50'
                           }`}
                       >
                         <Check className={`w-3 h-3 ${clothingStyles.includes(style.value as ClothingStyleOption) ? 'opacity-100' : 'opacity-0'}`} />
@@ -662,10 +663,10 @@ const VeoflowPanel = () => {
                           key={level}
                           onClick={() => setTouchLevel(level)}
                           className={`flex-1 h-2 rounded-full transition-all ${(level === "low" && (touchLevel === "low" || touchLevel === "medium" || touchLevel === "high")) ||
-                              (level === "medium" && (touchLevel === "medium" || touchLevel === "high")) ||
-                              (level === "high" && touchLevel === "high")
-                              ? 'bg-neon-red'
-                              : 'bg-muted'
+                            (level === "medium" && (touchLevel === "medium" || touchLevel === "high")) ||
+                            (level === "high" && touchLevel === "high")
+                            ? 'bg-neon-red'
+                            : 'bg-muted'
                             }`}
                         />
                       ))}
@@ -690,8 +691,8 @@ const VeoflowPanel = () => {
                         key={exp.value}
                         onClick={() => setExpression(exp.value as ExpressionOption)}
                         className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${expression === exp.value
-                            ? 'bg-neon-red text-white'
-                            : 'bg-muted text-muted-foreground border border-border'
+                          ? 'bg-neon-red text-white'
+                          : 'bg-muted text-muted-foreground border border-border'
                           }`}
                       >
                         {exp.label}
@@ -724,8 +725,8 @@ const VeoflowPanel = () => {
                           }
                         }}
                         className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${cameraAngles.includes(angle.value as CameraAngleOption)
-                            ? 'bg-neon-red text-white'
-                            : 'bg-muted text-muted-foreground border border-border'
+                          ? 'bg-neon-red text-white'
+                          : 'bg-muted text-muted-foreground border border-border'
                           }`}
                       >
                         {angle.label}
@@ -749,33 +750,13 @@ const VeoflowPanel = () => {
                         key={mov.value}
                         onClick={() => setMovement(mov.value as MovementOption)}
                         className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${movement === mov.value
-                            ? 'bg-neon-red text-white'
-                            : 'bg-muted text-muted-foreground border border-border'
+                          ? 'bg-neon-red text-white'
+                          : 'bg-muted text-muted-foreground border border-border'
                           }`}
                       >
                         {mov.label}
                       </button>
                     ))}
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      onClick={() => setMovement("static")}
-                      className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all border ${movement === "static"
-                          ? 'border-neon-red text-neon-red bg-neon-red/10'
-                          : 'border-border text-muted-foreground bg-muted/30'
-                        }`}
-                    >
-                      นิ่งเฉยไม่ขยับ
-                    </button>
-                    <button
-                      onClick={() => setMovement("active")}
-                      className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all border ${movement === "active"
-                          ? 'border-neon-red text-neon-red bg-neon-red/10'
-                          : 'border-border text-muted-foreground bg-muted/30'
-                        }`}
-                    >
-                      เคลื่อนไหวมาก
-                    </button>
                   </div>
                 </div>
 
@@ -884,8 +865,8 @@ const VeoflowPanel = () => {
                     <button
                       onClick={() => setAspectRatio("9:16")}
                       className={`flex-1 py-3 px-4 rounded-xl flex flex-col items-center gap-2 transition-all ${aspectRatio === "9:16"
-                          ? 'bg-neon-red text-white'
-                          : 'bg-muted border border-border text-muted-foreground'
+                        ? 'bg-neon-red text-white'
+                        : 'bg-muted border border-border text-muted-foreground'
                         }`}
                     >
                       <div className="w-4 h-7 border-2 border-current rounded-sm"></div>
@@ -895,8 +876,8 @@ const VeoflowPanel = () => {
                     <button
                       onClick={() => setAspectRatio("16:9")}
                       className={`flex-1 py-3 px-4 rounded-xl flex flex-col items-center gap-2 transition-all ${aspectRatio === "16:9"
-                          ? 'bg-neon-red text-white'
-                          : 'bg-muted border border-border text-muted-foreground'
+                        ? 'bg-neon-red text-white'
+                        : 'bg-muted border border-border text-muted-foreground'
                         }`}
                     >
                       <div className="w-7 h-4 border-2 border-current rounded-sm"></div>
@@ -1131,8 +1112,8 @@ const VeoflowPanel = () => {
                       <button
                         key={lang}
                         className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${idx === 0
-                            ? 'bg-neon-red text-white'
-                            : 'bg-muted text-muted-foreground border border-border'
+                          ? 'bg-neon-red text-white'
+                          : 'bg-muted text-muted-foreground border border-border'
                           }`}
                       >
                         {lang}
@@ -1174,8 +1155,8 @@ const VeoflowPanel = () => {
                       <button
                         key={opt}
                         className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${idx === 0
-                            ? 'bg-neon-red text-white'
-                            : 'bg-muted text-muted-foreground border border-border'
+                          ? 'bg-neon-red text-white'
+                          : 'bg-muted text-muted-foreground border border-border'
                           }`}
                       >
                         {opt}
@@ -1192,8 +1173,8 @@ const VeoflowPanel = () => {
                       <button
                         key={opt}
                         className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${idx === 0
-                            ? 'bg-neon-red text-white'
-                            : 'bg-muted text-muted-foreground border border-border'
+                          ? 'bg-neon-red text-white'
+                          : 'bg-muted text-muted-foreground border border-border'
                           }`}
                       >
                         {opt}
