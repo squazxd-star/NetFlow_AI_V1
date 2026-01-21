@@ -1,0 +1,271 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Elegant Tech Design System - Red & Dark Theme */
+@layer base {
+  :root {
+    --background: 0 0% 7%;
+    --foreground: 0 0% 95%;
+
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 0 72% 51%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 20%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 55%;
+
+    --accent: 0 72% 51%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 18%;
+    --input: 0 0% 12%;
+    --ring: 0 72% 51%;
+
+    --radius: 0.75rem;
+
+    /* Custom accent colors - Red Theme */
+    --neon-red: 0 72% 51%;
+    --neon-red-light: 0 85% 65%;
+    --neon-red-dark: 0 65% 40%;
+    --neon-white: 0 0% 95%;
+    --neon-glow: 0 0 20px hsl(0, 72%, 51%), 0 0 40px hsl(0, 72%, 51%, 0.5);
+    
+    /* Glassmorphism */
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
+  }
+
+  .dark {
+    --background: 0 0% 7%;
+    --foreground: 0 0% 95%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Prompt', 'Noto Sans Thai', sans-serif;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply rounded-2xl border backdrop-blur-xl;
+    border-color: hsl(var(--border));
+    background: linear-gradient(
+      135deg,
+      hsl(var(--neon-red) / 0.05) 0%,
+      hsl(var(--card)) 100%
+    );
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 hsl(var(--neon-white) / 0.05);
+  }
+
+  .neon-text {
+    text-shadow: 
+      0 0 10px hsl(var(--neon-red)),
+      0 0 20px hsl(var(--neon-red)),
+      0 0 40px hsl(var(--neon-red) / 0.5);
+  }
+
+  .neon-border {
+    box-shadow: 
+      0 0 10px hsl(var(--neon-red) / 0.5),
+      inset 0 0 10px hsl(var(--neon-red) / 0.1);
+  }
+
+  .neon-input {
+    @apply rounded-xl px-4 py-3 text-sm transition-all duration-300;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--input));
+  }
+
+  .neon-input:focus {
+    @apply outline-none;
+    border-color: hsl(var(--neon-red) / 0.5);
+    box-shadow: 
+      0 0 15px hsl(var(--neon-red) / 0.2),
+      inset 0 0 10px hsl(var(--neon-red) / 0.03);
+  }
+
+  .neon-textarea {
+    @apply rounded-xl px-4 py-3 text-sm transition-all duration-300 resize-none;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--input));
+  }
+
+  .neon-textarea:focus {
+    @apply outline-none;
+    border-color: hsl(var(--neon-red) / 0.5);
+    box-shadow: 
+      0 0 15px hsl(var(--neon-red) / 0.2),
+      inset 0 0 10px hsl(var(--neon-red) / 0.03);
+  }
+
+  .neon-select {
+    @apply rounded-xl px-4 py-3 text-sm transition-all duration-300 appearance-none cursor-pointer;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--input));
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 1.25em 1.25em;
+  }
+
+  .neon-select:focus {
+    @apply outline-none;
+    border-color: hsl(var(--neon-red) / 0.5);
+  }
+
+  .pill-button {
+    @apply px-4 py-2 rounded-full text-xs font-medium transition-all duration-300;
+    border: 1px solid hsl(var(--border));
+  }
+
+  .pill-button-active {
+    background: hsl(var(--neon-red));
+    color: hsl(var(--neon-white));
+    border-color: hsl(var(--neon-red));
+    box-shadow: 0 0 20px hsl(var(--neon-red) / 0.4);
+  }
+
+  .pill-button-inactive {
+    background: hsl(var(--muted));
+    @apply text-muted-foreground;
+  }
+
+  .pill-button-inactive:hover {
+    background: hsl(var(--neon-red) / 0.1);
+    border-color: hsl(var(--neon-red) / 0.3);
+  }
+
+  .pill-button-outline {
+    @apply px-4 py-2 rounded-full text-xs font-medium transition-all duration-300;
+    border: 1px solid hsl(var(--neon-red));
+    color: hsl(var(--neon-red));
+    background: transparent;
+  }
+
+  .pill-button-outline:hover {
+    background: hsl(var(--neon-red) / 0.1);
+  }
+
+  .tab-button {
+    @apply px-4 py-2 text-sm font-medium transition-all duration-300 flex-1 text-center;
+    color: hsl(var(--muted-foreground));
+    border-bottom: 2px solid transparent;
+  }
+
+  .tab-button-active {
+    color: hsl(var(--neon-red));
+    border-bottom-color: hsl(var(--neon-red));
+  }
+
+  .tab-button:hover:not(.tab-button-active) {
+    color: hsl(var(--foreground));
+  }
+
+  .radio-button {
+    @apply px-4 py-2 rounded-full text-xs font-medium transition-all duration-300;
+    border: 1px solid hsl(var(--border));
+    background: transparent;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .radio-button-active {
+    border-color: hsl(var(--neon-red));
+    color: hsl(var(--neon-red));
+    background: hsl(var(--neon-red) / 0.1);
+  }
+
+  .pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  .status-dot {
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  .icon-button {
+    @apply p-2 rounded-lg transition-all duration-300;
+    background: hsl(var(--muted));
+  }
+
+  .icon-button:hover {
+    background: hsl(var(--neon-red) / 0.2);
+  }
+
+  .icon-button-active {
+    background: hsl(var(--neon-red));
+    color: white;
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 
+      0 0 20px hsl(var(--neon-red)),
+      0 0 40px hsl(var(--neon-red) / 0.5);
+  }
+  50% {
+    box-shadow: 
+      0 0 30px hsl(var(--neon-red)),
+      0 0 60px hsl(var(--neon-red) / 0.7);
+  }
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--neon-red));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--neon-red-light));
+}
