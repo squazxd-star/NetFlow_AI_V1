@@ -8,9 +8,9 @@ const Index = () => {
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-neon-red/5 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-neon-red/10 rounded-full blur-3xl" />
       </div>
-      
+
       {/* Main Panel */}
-      <div className="relative z-10">
+      <div className="relative z-10 w-full max-w-[417px]">
         <VeoflowPanel />
       </div>
     </div>

@@ -185,7 +185,7 @@ const VeoflowPanel = () => {
   );
 
   return (
-    <div className="min-h-screen w-full max-w-[420px] mx-auto bg-background overflow-y-auto">
+    <div className="min-h-screen w-full max-w-[417px] mx-auto bg-background overflow-y-auto">
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-background/95 backdrop-blur-sm z-10">
         <div className="flex items-center gap-2">
