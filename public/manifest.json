@@ -36,8 +36,8 @@
         "default_title": "Open NetFlow AI"
     },
     "icons": {
-        "16": "vite.svg",
-        "48": "vite.svg",
-        "128": "vite.svg"
+        "16": "placeholder.svg",
+        "48": "placeholder.svg",
+        "128": "placeholder.svg"
     }
 }
