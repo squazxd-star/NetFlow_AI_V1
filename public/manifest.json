@@ -16,8 +16,7 @@
         "<all_urls>"
     ],
     "background": {
-        "service_worker": "service-worker-loader.js",
-        "type": "module"
+        "service_worker": "service-worker-loader.js"
     },
     "content_scripts": [
         {
