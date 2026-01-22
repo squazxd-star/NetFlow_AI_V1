@@ -18,4 +18,17 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+        content: path.resolve(__dirname, "src/content.tsx"),
+      },
+      output: {
+        entryFileNames: "src/[name].js",
+        chunkFileNames: "assets/[name]-[hash].js",
+        assetFileNames: "assets/[name].[ext]"
+      }
+    }
+  }
 }));
