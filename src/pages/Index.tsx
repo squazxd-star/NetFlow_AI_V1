@@ -1,4 +1,4 @@
-import VeoflowPanel from "@/components/VeoflowPanel";
+import NetflowPanel from "@/components/NetflowPanel";
 
 const Index = () => {
   return (
@@ -11,7 +11,7 @@ const Index = () => {
 
       {/* Main Panel */}
       <div className="relative z-10 w-full max-w-[417px]">
-        <VeoflowPanel />
+        <NetflowPanel />
       </div>
     </div>
   );

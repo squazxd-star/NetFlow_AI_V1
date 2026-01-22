@@ -3,7 +3,7 @@ import {
   Plus, Terminal, Zap, Wand2, User, Settings, Play, Infinity,
   ShoppingBag, Eye, ChevronDown, Youtube, FileText, Sparkles,
   Image, Video, Clock, RefreshCw, Check, Palette, BarChart3,
-  Pencil, Stars, Link, Radio, Tv, Mic, Globe, Save
+  Pencil, Stars, Link, Radio, Tv, Mic, Globe, Save, Camera, MessageSquare
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -16,7 +16,7 @@ type VideoDurationOption = "short" | "medium" | "long";
 type GenderOption = "male" | "female";
 type SaleStyleOption = "hard" | "soft" | "educational" | "storytelling";
 type LanguageOption = "th-central" | "th-north" | "th-south" | "th-isan";
-type TemplateOption = "product-review" | "brainrot-product" | "unboxing" | "comparison" | "testimonial" | "flash-sale";
+type TemplateOption = "product-review" | "brainrot-product" | "unboxing" | "comparison" | "testimonial" | "flash-sale" | "tutorial" | "lifestyle" | "trending" | "mini-drama" | "before-after";
 type VoiceToneOption = "energetic" | "calm" | "friendly" | "professional";
 type EmotionSyncOption = "natural" | "lively" | "calm";
 type AgeRangeOption = "teen" | "young-adult" | "adult" | "middle-age" | "senior";
@@ -28,7 +28,7 @@ type ExpressionOption = "neutral" | "happy" | "excited" | "serious";
 type CameraAngleOption = "front" | "side" | "close-up" | "full-body" | "dynamic";
 type MovementOption = "static" | "minimal" | "active";
 
-const VeoflowPanel = () => {
+const NetflowPanel = () => {
   // Tab state for smooth transitions
   const [activeTab, setActiveTab] = useState("create");
 
@@ -85,6 +85,37 @@ const VeoflowPanel = () => {
   const [productionOpen, setProductionOpen] = useState(true);
   const [productDataOpen, setProductDataOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(true);
+  const [soundOpen, setSoundOpen] = useState(true);
+  const [salesOpen, setSalesOpen] = useState(true);
+  const [durationOpen, setDurationOpen] = useState(true);
+
+  // NetCast Pro - Production Settings
+  const [sceneCount, setSceneCount] = useState(3);
+  const [durationMode, setDurationMode] = useState<'scenes' | 'time'>('scenes');
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState<'9:16' | '16:9'>('9:16');
+  const [selectedPlatform, setSelectedPlatform] = useState<'tiktok' | 'youtube' | 'save'>('tiktok');
+
+  // NetCast Pro - Section States
+  const [netcastStoryOpen, setNetcastStoryOpen] = useState(true);
+  const [netcastCharacterOpen, setNetcastCharacterOpen] = useState(true);
+  const [netcastQualityOpen, setNetcastQualityOpen] = useState(true);
+  const [netcastSoundOpen, setNetcastSoundOpen] = useState(true);
+  const [netcastSalesOpen, setNetcastSalesOpen] = useState(true);
+  const [netcastProductionOpen, setNetcastProductionOpen] = useState(true);
+
+  // NetCast Pro - Form States
+  const [netcastTopic, setNetcastTopic] = useState("");
+  const [netcastHostType, setNetcastHostType] = useState("สาววัยรุ่น (ไทย)");
+  const [netcastGuestType, setNetcastGuestType] = useState("เลือกเสียง");
+  const [netcastLipSync, setNetcastLipSync] = useState("อัตโนมัติ");
+  const [netcastEmotion, setNetcastEmotion] = useState("เป็นปกติ");
+  const [netcastBgStyle, setNetcastBgStyle] = useState("เบลอโปร่ง");
+  const [netcastAtmosphereVol, setNetcastAtmosphereVol] = useState(33);
+
+  // Story Style Settings
+  const [selectedStoryStyle, setSelectedStoryStyle] = useState('casual');
+  const [showCustomStyleInput, setShowCustomStyleInput] = useState(false);
+  const [customStyleText, setCustomStyleText] = useState('');
 
   // TikTok Tab - synced products
   const [syncedProducts] = useState([
@@ -97,33 +128,45 @@ const VeoflowPanel = () => {
   const restIntervalOptions: RestIntervalOption[] = ["30s", "1m", "2m", "5m", "10m"];
 
   const saleStyleOptions: { value: SaleStyleOption; label: string }[] = [
-    { value: "hard", label: "ขายตรง" },
-    { value: "soft", label: "ขายอ่อน" },
-    { value: "educational", label: "ให้ความรู้" },
-    { value: "storytelling", label: "เล่าเรื่อง" },
+    { value: "hard", label: "สูงมาก" },
+    { value: "soft", label: "สูง" },
+    { value: "educational", label: "ปานกลาง" },
+    { value: "storytelling", label: "ต่ำ" },
   ];
 
   const templateOptions: { value: TemplateOption; label: string; description: string }[] = [
-    { value: "product-review", label: "รีวสินค้า (Product Review)", description: "เน้นรีวิวคุณภาพสินค้าและกลุ่มเป้าหมาย" },
+    { value: "product-review", label: "รีวิวสินค้า (Product Review)", description: "เน้นรีวิวคุณภาพสินค้าและกลุ่มเป้าหมาย" },
     { value: "brainrot-product", label: "Brainrot + Product", description: "สไตล์ไวรัลผสมขายของ" },
     { value: "unboxing", label: "แกะกล่อง (Unboxing)", description: "เปิดกล่องสินค้าพร้อมรีวิว" },
     { value: "comparison", label: "เปรียบเทียบ (Comparison)", description: "เทียบสินค้าก่อน-หลังหรือคู่แข่ง" },
     { value: "testimonial", label: "รีวิวลูกค้า (Testimonial)", description: "เสียงจากลูกค้าจริง" },
     { value: "flash-sale", label: "Flash Sale", description: "โปรโมชั่นด่วน กระตุ้นตัดสินใจ" },
+    { value: "tutorial", label: "สอนวิธีใช้ (How-To)", description: "สอนวิธีใช้สินค้าแบบ Step-by-Step" },
+    { value: "lifestyle", label: "ไลฟ์สไตล์ (Lifestyle)", description: "แนะนำสินค้าผ่านการใช้ชีวิตประจำวัน" },
+    { value: "trending", label: "ตามเทรนด์ (Trending)", description: "คอนเทนต์ตามกระแสไวรัล" },
+    { value: "mini-drama", label: "มินิดราม่า (Mini-Drama)", description: "เล่าเรื่องสั้นๆ แบบละคร" },
+    { value: "before-after", label: "ก่อน-หลัง (Before-After)", description: "แสดงผลลัพธ์ก่อนและหลังใช้" },
   ];
 
   const languageOptions: { value: LanguageOption; label: string }[] = [
     { value: "th-central", label: "ไทย" },
-    { value: "th-north", label: "เหนือ" },
-    { value: "th-south", label: "ใต้" },
-    { value: "th-isan", label: "อีสาน" },
+    { value: "th-north", label: "อังกฤษ" },
+    { value: "th-south", label: "ลาว" },
+    { value: "th-isan", label: "จีน" },
+  ];
+
+  const accentOptions: { value: string; label: string }[] = [
+    { value: "central", label: "กลาง" },
+    { value: "north", label: "เหนือ" },
+    { value: "south", label: "ใต้" },
+    { value: "isan", label: "อีสาน" },
   ];
 
   const voiceToneOptions: { value: VoiceToneOption; label: string }[] = [
-    { value: "energetic", label: "ดื้นเต้น/กระตือรือร้น" },
-    { value: "calm", label: "สงบ" },
-    { value: "friendly", label: "เป็นกันเอง" },
-    { value: "professional", label: "มืออาชีพ" },
+    { value: "energetic", label: "ตื่นเต้น/กระตือรือร้น" },
+    { value: "calm", label: "สงบ/ผ่อนคลาย" },
+    { value: "friendly", label: "เป็นกันเอง/อบอุ่น" },
+    { value: "professional", label: "มืออาชีพ/น่าเชื่อถือ" },
   ];
 
   // Determine if fields should be disabled (AI mode active)
@@ -390,9 +433,11 @@ const VeoflowPanel = () => {
                       disabled={isAiMode}
                       className={`w-full neon-select ${isAiMode ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                      <option value="standard">มาตรฐาน</option>
-                      <option value="casual">ทั่วไป</option>
-                      <option value="formal">เป็นทางการ</option>
+                      {accentOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -776,12 +821,12 @@ const VeoflowPanel = () => {
               <SectionHeader
                 icon={ShoppingBag}
                 title="ข้อมูลสินค้า"
-                isOpen={qualityOpen}
-                onToggle={() => setQualityOpen(!qualityOpen)}
+                isOpen={productDataOpen}
+                onToggle={() => setProductDataOpen(!productDataOpen)}
               />
             </div>
 
-            {qualityOpen && (
+            {productDataOpen && (
               <div className="px-4 pb-4 space-y-4">
                 {/* Product ID */}
                 <div>
@@ -1075,52 +1120,207 @@ const VeoflowPanel = () => {
             </button>
           </section>
 
+          {/* Story and Style Section */}
+          <section className="glass-card overflow-hidden">
+            <div className="px-4 pt-3">
+              <SectionHeader
+                icon={Sparkles}
+                title="เนื้อเรื่องและสไตล์"
+                isOpen={netcastStoryOpen}
+                onToggle={() => setNetcastStoryOpen(!netcastStoryOpen)}
+              />
+            </div>
+
+            {netcastStoryOpen && (
+              <div className="px-4 pb-4 space-y-4">
+                {/* Topic / Main Point */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="w-3 h-3 text-muted-foreground" />
+                    <label className="text-xs text-muted-foreground">หัวข้อเรื่อง / ประเด็นหลัก</label>
+                  </div>
+                  <textarea
+                    placeholder="เช่น การลงทุนในยุค AI, รีวิวสกินแคร์สำหรับคนผิวแพ้ง่าย..."
+                    value={netcastTopic}
+                    onChange={(e) => setNetcastTopic(e.target.value)}
+                    className="w-full neon-input text-xs min-h-[70px] resize-none"
+                    rows={3}
+                  />
+                </div>
+
+                {/* Story Style */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="w-3 h-3 text-muted-foreground" />
+                    <label className="text-xs text-muted-foreground">สไตล์การเล่าเรื่อง (Story Style)</label>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setSelectedStoryStyle('casual')}
+                      className={`px-4 py-2.5 rounded-lg text-xs font-medium flex items-center gap-2 transition-all ${selectedStoryStyle === 'casual'
+                        ? 'bg-neon-red text-white'
+                        : 'bg-muted text-muted-foreground border border-border hover:border-neon-red/50'
+                        }`}
+                    >
+                      <MessageSquare className="w-3 h-3" />
+                      สบายๆเป็นกันเอง
+                    </button>
+                    <button
+                      onClick={() => setSelectedStoryStyle('educational')}
+                      className={`px-4 py-2.5 rounded-lg text-xs font-medium flex items-center gap-2 transition-all ${selectedStoryStyle === 'educational'
+                        ? 'bg-neon-red text-white'
+                        : 'bg-muted text-muted-foreground border border-border hover:border-neon-red/50'
+                        }`}
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      ให้ความรู้/วิชาการ
+                    </button>
+                    <button
+                      onClick={() => setSelectedStoryStyle('drama')}
+                      className={`px-4 py-2.5 rounded-lg text-xs font-medium flex items-center gap-2 transition-all ${selectedStoryStyle === 'drama'
+                        ? 'bg-neon-red text-white'
+                        : 'bg-muted text-muted-foreground border border-border hover:border-neon-red/50'
+                        }`}
+                    >
+                      <MessageSquare className="w-3 h-3" />
+                      ดราม่า/เล่าเรื่องผี
+                    </button>
+                    <button
+                      onClick={() => setSelectedStoryStyle('news')}
+                      className={`px-4 py-2.5 rounded-lg text-xs font-medium flex items-center gap-2 transition-all ${selectedStoryStyle === 'news'
+                        ? 'bg-neon-red text-white'
+                        : 'bg-muted text-muted-foreground border border-border hover:border-neon-red/50'
+                        }`}
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      ข่าวสาร/อัพเดต
+                    </button>
+                  </div>
+
+                  {/* Add Custom Style Button */}
+                  <button
+                    onClick={() => setShowCustomStyleInput(!showCustomStyleInput)}
+                    className="w-full mt-3 py-2.5 rounded-lg text-xs font-medium text-muted-foreground border border-dashed border-border hover:border-neon-red/50 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-3 h-3" />
+                    เพิ่มสไตล์ที่กำหนดเอง (Custom Style)
+                  </button>
+
+                  {/* Custom Style Input */}
+                  {showCustomStyleInput && (
+                    <div className="mt-3 p-3 rounded-lg border border-neon-red/30 bg-neon-red/5 space-y-2">
+                      <label className="text-xs text-foreground font-medium">กรอกสไตล์ที่ต้องการ:</label>
+                      <input
+                        type="text"
+                        value={customStyleText}
+                        onChange={(e) => setCustomStyleText(e.target.value)}
+                        placeholder="เช่น พูดเร็ว ตลก, พากย์เหมือนข่าว..."
+                        className="w-full neon-input text-xs"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            if (customStyleText.trim()) {
+                              setSelectedStoryStyle('custom');
+                              setShowCustomStyleInput(false);
+                            }
+                          }}
+                          className="flex-1 py-2 rounded-lg text-xs font-medium bg-neon-red text-white hover:opacity-90 transition-opacity"
+                        >
+                          ใช้สไตล์นี้
+                        </button>
+                        <button
+                          onClick={() => setShowCustomStyleInput(false)}
+                          className="px-4 py-2 rounded-lg text-xs font-medium bg-muted text-muted-foreground border border-border"
+                        >
+                          ยกเลิก
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+
           {/* Smart Character Settings */}
           <section className="glass-card overflow-hidden">
             <div className="px-4 pt-3">
               <SectionHeader
                 icon={User}
-                title="ตั้งค่าตัวละครอัจฉริยะ"
-                isOpen={characterOpen}
-                onToggle={() => setCharacterOpen(!characterOpen)}
-                badge="HOT"
+                title="ตั้งค่าตัวตนอัจฉริยะ"
+                isOpen={netcastCharacterOpen}
+                onToggle={() => setNetcastCharacterOpen(!netcastCharacterOpen)}
               />
             </div>
-            {characterOpen && (
+            {netcastCharacterOpen && (
               <div className="px-4 pb-4 space-y-4">
-                {/* Avatar Upload */}
-                <div className="flex items-center gap-3">
-                  <button
-                    className="w-20 h-24 rounded-xl border-2 border-dashed border-neon-red bg-muted/30 flex flex-col items-center justify-center gap-1 hover:bg-neon-red/5 transition-all"
-                  >
-                    <Plus className="w-5 h-5 text-neon-red" />
-                    <span className="text-[10px] text-neon-red">อัปโหลด รูป/คลิป</span>
-                  </button>
-                  <div className="w-20 h-24 rounded-xl border border-border bg-muted/30 flex items-center justify-center">
-                    <span className="text-[9px] text-muted-foreground text-center px-1">ตัวละคร จากไลบรารี</span>
-                  </div>
-                  <div className="w-20 h-24 rounded-xl border border-border bg-muted/30 flex items-center justify-center">
-                    <span className="text-[9px] text-muted-foreground text-center px-1">ตัวอย่าง ดีไซน์เดิม</span>
-                  </div>
-                </div>
+                {/* Host & Guest Two Column Layout */}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Host Column */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <User className="w-3 h-3 text-neon-red" />
+                      <span className="text-xs text-foreground">โฮสต์</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-neon-red/20 text-neon-red font-medium">HOST</span>
+                    </div>
 
-                {/* Language Options */}
-                <div>
-                  <label className="text-xs text-muted-foreground mb-2 block">พากษ์เสียงหลายภาษา</label>
-                  <div className="flex gap-2">
-                    {["TH", "EN", "CH", "JP"].map((lang, idx) => (
-                      <button
-                        key={lang}
-                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${idx === 0
-                          ? 'bg-neon-red text-white'
-                          : 'bg-muted text-muted-foreground border border-border'
-                          }`}
-                      >
-                        {lang}
-                      </button>
-                    ))}
+                    {/* Host Upload Area */}
+                    <button className="w-full aspect-square rounded-xl border-2 border-neon-red bg-neon-red/5 flex flex-col items-center justify-center gap-2 hover:bg-neon-red/10 transition-all">
+                      <div className="w-10 h-10 rounded-lg bg-neon-red/20 flex items-center justify-center">
+                        <Camera className="w-5 h-5 text-neon-red" />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-neon-red font-medium">อัปโหลด</p>
+                        <p className="text-xs text-neon-red">รูปหน้าตรง</p>
+                      </div>
+                    </button>
+
+                    {/* Host Character Select */}
+                    <select
+                      value={netcastHostType}
+                      onChange={(e) => setNetcastHostType(e.target.value)}
+                      className="w-full neon-input text-xs"
+                    >
+                      <option value="สาววัยรุ่น (ไทย)">สาววัยรุ่น (ไทย)</option>
+                      <option value="หนุ่มวัยรุ่น (ไทย)">หนุ่มวัยรุ่น (ไทย)</option>
+                      <option value="สาวมืออาชีพ">สาวมืออาชีพ</option>
+                      <option value="หนุ่มมืออาชีพ">หนุ่มมืออาชีพ</option>
+                      <option value="ผู้ใหญ่ใจดี">ผู้ใหญ่ใจดี</option>
+                    </select>
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-1">*จะใช้เสียงและคำแปลตามภาษาที่เลือกอัตโนมัติ</p>
+
+                  {/* Guest Column */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <User className="w-3 h-3 text-muted-foreground" />
+                      <span className="text-xs text-foreground">แขกรับเชิญ</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground font-medium">GUEST</span>
+                    </div>
+
+                    {/* Guest Upload Area */}
+                    <button className="w-full aspect-square rounded-xl border-2 border-dashed border-border bg-muted/30 flex flex-col items-center justify-center gap-2 hover:border-muted-foreground transition-all">
+                      <div className="w-10 h-10 rounded-full border-2 border-dashed border-muted-foreground flex items-center justify-center">
+                        <Plus className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground font-medium">อัปโหลด</p>
+                        <p className="text-[10px] text-muted-foreground">(ไม่บังคับ)</p>
+                      </div>
+                    </button>
+
+                    {/* Guest Voice Select */}
+                    <select
+                      value={netcastGuestType}
+                      onChange={(e) => setNetcastGuestType(e.target.value)}
+                      className="w-full neon-input text-xs"
+                    >
+                      <option value="เลือกเสียง">เลือกเสียง</option>
+                      <option value="เสียงชาย สุภาพ">เสียงชาย สุภาพ</option>
+                      <option value="เสียงหญิง สุภาพ">เสียงหญิง สุภาพ</option>
+                      <option value="เสียงเด็ก">เสียงเด็ก</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             )}
@@ -1132,18 +1332,22 @@ const VeoflowPanel = () => {
               <SectionHeader
                 icon={Palette}
                 title="ควบคุมภาพและอารมณ์"
-                isOpen={qualityOpen}
-                onToggle={() => setQualityOpen(!qualityOpen)}
+                isOpen={netcastQualityOpen}
+                onToggle={() => setNetcastQualityOpen(!netcastQualityOpen)}
               />
             </div>
-            {qualityOpen && (
+            {netcastQualityOpen && (
               <div className="px-4 pb-4 space-y-4">
                 {/* Lip Sync */}
                 <div>
                   <label className="text-xs text-muted-foreground mb-2 block">ขยับปากตามเสียงอัตโนมัติ</label>
-                  <select className="w-full neon-select">
-                    <option>อัตโนมัติ</option>
-                    <option>ซิงค์แม่นยำ</option>
+                  <select
+                    value={netcastLipSync}
+                    onChange={(e) => setNetcastLipSync(e.target.value)}
+                    className="w-full neon-select"
+                  >
+                    <option value="อัตโนมัติ">อัตโนมัติ</option>
+                    <option value="ซิงค์แม่นยำ">ซิงค์แม่นยำ</option>
                   </select>
                 </div>
 
@@ -1151,10 +1355,11 @@ const VeoflowPanel = () => {
                 <div>
                   <label className="text-xs text-muted-foreground mb-2 block">การแสดงออก (Emotion Sync)</label>
                   <div className="flex gap-2">
-                    {["เป็นปกติ", "ร้อนรุ่ง", "เย็นชานุ่ม"].map((opt, idx) => (
+                    {["เป็นปกติ", "ร้อนแรง", "สุขุม"].map((opt) => (
                       <button
                         key={opt}
-                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${idx === 0
+                        onClick={() => setNetcastEmotion(opt)}
+                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${netcastEmotion === opt
                           ? 'bg-neon-red text-white'
                           : 'bg-muted text-muted-foreground border border-border'
                           }`}
@@ -1169,10 +1374,11 @@ const VeoflowPanel = () => {
                 <div>
                   <label className="text-xs text-muted-foreground mb-2 block">สไตล์พื้นหลัง</label>
                   <div className="flex gap-2">
-                    {["เบลอโปร่ง", "โทนสี/ไวโบ", "ไม่เปลี่ยน"].map((opt, idx) => (
+                    {["เบลอโปร่ง", "โทนสี/ไวโบ", "ไม่เปลี่ยน"].map((opt) => (
                       <button
                         key={opt}
-                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${idx === 0
+                        onClick={() => setNetcastBgStyle(opt)}
+                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${netcastBgStyle === opt
                           ? 'bg-neon-red text-white'
                           : 'bg-muted text-muted-foreground border border-border'
                           }`}
@@ -1191,6 +1397,301 @@ const VeoflowPanel = () => {
                       <span className="text-xs font-medium">สตูดิโอ Crypto Live Data</span>
                     </div>
                     <p className="text-[10px] text-muted-foreground">แสดงราคาเหรียญแบบเรียลไทม์ในสตรีม</p>
+                  </div>
+                  <Switch className="data-[state=checked]:bg-neon-red" />
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Sound & Atmosphere Section */}
+          <section className="glass-card overflow-hidden">
+            <div className="px-4 pt-3">
+              <SectionHeader
+                icon={Mic}
+                title="เสียงและบรรยากาศ"
+                isOpen={netcastSoundOpen}
+                onToggle={() => setNetcastSoundOpen(!netcastSoundOpen)}
+              />
+            </div>
+
+            {netcastSoundOpen && (
+              <div className="px-4 pb-4 space-y-4">
+                {/* Atmosphere Volume Level */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs text-muted-foreground">ระดับเสียงบรรยากาศ</label>
+                    <span className="text-xs text-neon-red font-medium">คาเฟ่</span>
+                  </div>
+                  <div className="relative">
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full w-1/3 bg-gradient-to-r from-neon-red to-red-400 rounded-full"></div>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={netcastAtmosphereVol}
+                      onChange={(e) => setNetcastAtmosphereVol(Number(e.target.value))}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>เงียบ</span>
+                    <span>คาเฟ่</span>
+                    <span>สตูดิโอ</span>
+                    <span>ธรรมชาติ</span>
+                    <span>ถนน</span>
+                  </div>
+                </div>
+
+                {/* Add Realistic Human Sound */}
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30">
+                  <input
+                    type="checkbox"
+                    defaultChecked
+                    className="w-4 h-4 rounded accent-neon-red"
+                  />
+                  <div className="flex-1">
+                    <span className="text-xs font-medium text-foreground">เพิ่มเสียงมนุษย์สมจริง</span>
+                    <p className="text-[10px] text-muted-foreground">เสียงถอนหายใจ, พลิกกระดาษ, จิบน้ำ</p>
+                  </div>
+                  <User className="w-4 h-4 text-neon-red" />
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Sales Banner & Closing Section */}
+          <section className="glass-card overflow-hidden">
+            <div className="px-4 pt-3">
+              <SectionHeader
+                icon={ShoppingBag}
+                title="สายป้ายยาและปิดการขาย"
+                isOpen={netcastSalesOpen}
+                onToggle={() => setNetcastSalesOpen(!netcastSalesOpen)}
+              />
+            </div>
+
+            {netcastSalesOpen && (
+              <div className="px-4 pb-4 space-y-4">
+                {/* Product Info */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Settings className="w-3 h-3 text-muted-foreground" />
+                    <label className="text-xs text-muted-foreground">ข้อมูลสินค้า</label>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="รหัสสินค้า (Product ID)"
+                    className="w-full neon-input text-xs"
+                  />
+                </div>
+
+                {/* 3D Floating Product Toggle */}
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+                  <span className="text-xs font-medium text-foreground">โชว์สินค้า 3D ลอยตัว</span>
+                  <Switch className="data-[state=checked]:bg-neon-red" />
+                </div>
+
+                {/* AI Scripting */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-3 h-3 text-muted-foreground" />
+                    <label className="text-xs text-muted-foreground">AI Scripting</label>
+                  </div>
+
+                  {/* AI Hook Button */}
+                  <button className="w-full py-3 px-4 rounded-xl font-medium text-white bg-neon-red hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+                    <Wand2 className="w-4 h-4" />
+                    AI ช่วยคิด Hook หยุดนิ้ว
+                  </button>
+
+                  {/* AI CTA Button */}
+                  <button className="w-full py-3 px-4 rounded-xl font-medium text-foreground bg-muted border border-border hover:bg-muted/80 transition-colors flex items-center justify-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    AI เขียนบทปิดการขาย (CTA)
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Production & Preview Section (Combined) */}
+          <section className="glass-card overflow-hidden">
+            <div className="px-4 pt-3">
+              <SectionHeader
+                icon={Video}
+                title="การผลิตและพรีวิว"
+                isOpen={netcastProductionOpen}
+                onToggle={() => setNetcastProductionOpen(!netcastProductionOpen)}
+              />
+            </div>
+
+            {netcastProductionOpen && (
+              <div className="px-4 pb-4 space-y-4">
+                {/* Aspect Ratio */}
+                <div>
+                  <label className="text-xs text-muted-foreground mb-2 block">สัดส่วนวิดีโอ (Aspect Ratio)</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setSelectedAspectRatio('9:16')}
+                      className={`py-3 px-4 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${selectedAspectRatio === '9:16'
+                        ? 'text-white bg-neon-red'
+                        : 'text-muted-foreground bg-muted border border-border hover:border-neon-red/50'
+                        }`}
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="7" y="2" width="10" height="20" rx="2" />
+                      </svg>
+                      <div className="text-left">
+                        <div className="text-xs font-medium">แนวตั้ง 9:16</div>
+                        <div className="text-[10px] opacity-70">TikTok</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setSelectedAspectRatio('16:9')}
+                      className={`py-3 px-4 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${selectedAspectRatio === '16:9'
+                        ? 'text-white bg-neon-red'
+                        : 'text-muted-foreground bg-muted border border-border hover:border-neon-red/50'
+                        }`}
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="2" y="7" width="20" height="10" rx="2" />
+                      </svg>
+                      <div className="text-left">
+                        <div className="text-xs font-medium">แนวนอน 16:9</div>
+                        <div className="text-[10px] opacity-70">YouTube</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Platform & Mode */}
+                <div className="flex items-start justify-between gap-4">
+                  {/* Platform Selection */}
+                  <div className="flex-1">
+                    <label className="text-xs text-muted-foreground mb-2 block">แพลตฟอร์ม</label>
+                    <div className="flex items-center bg-background rounded-xl border border-border overflow-hidden">
+                      <button
+                        onClick={() => setSelectedPlatform('tiktok')}
+                        className={`flex-1 flex items-center justify-center py-3 px-4 transition-all ${selectedPlatform === 'tiktok' ? 'text-white bg-muted/50' : 'text-muted-foreground hover:text-white'
+                          }`}
+                      >
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                        </svg>
+                      </button>
+                      <div className="w-px h-8 bg-border"></div>
+                      <button
+                        onClick={() => setSelectedPlatform('youtube')}
+                        className={`flex-1 flex items-center justify-center py-3 px-4 transition-all ${selectedPlatform === 'youtube' ? 'text-white bg-muted/50' : 'text-muted-foreground hover:text-white'
+                          }`}
+                      >
+                        <Youtube className="w-5 h-5" />
+                      </button>
+                      <div className="w-px h-8 bg-border"></div>
+                      <button
+                        onClick={() => setSelectedPlatform('save')}
+                        className={`flex-1 flex items-center justify-center py-3 px-4 transition-all ${selectedPlatform === 'save' ? 'text-white bg-muted/50' : 'text-muted-foreground hover:text-white'
+                          }`}
+                      >
+                        <Save className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Mode */}
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-2 block text-right">โหมด</label>
+                    <div className="flex items-center justify-center bg-background rounded-xl border border-border py-3 px-6 hover:border-neon-red/50 transition-colors cursor-pointer">
+                      <Save className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Divider with Duration Title */}
+                <div className="flex items-center gap-2 pt-2">
+                  <Clock className="w-4 h-4 text-neon-red" />
+                  <span className="text-sm font-semibold text-foreground">ความยาว / จำนวนฉาก</span>
+                </div>
+
+                {/* Scene/Time Toggle Tabs */}
+                <div className="flex bg-muted/50 rounded-xl p-1 border border-border">
+                  <button
+                    onClick={() => setDurationMode('scenes')}
+                    className={`flex-1 px-4 py-2 rounded-lg text-xs font-medium transition-all ${durationMode === 'scenes'
+                      ? 'bg-neon-red text-white shadow-lg'
+                      : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                  >
+                    ฉาก (Scenes)
+                  </button>
+                  <button
+                    onClick={() => setDurationMode('time')}
+                    className={`flex-1 px-4 py-2 rounded-lg text-xs font-medium transition-all ${durationMode === 'time'
+                      ? 'bg-neon-red text-white shadow-lg'
+                      : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                  >
+                    เวลา (Time)
+                  </button>
+                </div>
+
+                {/* Scene Count Controls */}
+                <div className="flex items-center justify-between gap-4">
+                  {/* Scene Counter */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center border border-border rounded-xl overflow-hidden bg-muted/30">
+                      <div className="w-16 h-16 flex items-center justify-center text-2xl font-bold text-foreground">
+                        {sceneCount}
+                      </div>
+                      <div className="flex flex-col border-l border-border">
+                        <button
+                          onClick={() => setSceneCount(prev => Math.min(prev + 1, 10))}
+                          className="px-3 py-2 text-muted-foreground hover:text-neon-red hover:bg-neon-red/10 transition-colors"
+                        >
+                          <ChevronDown className="w-4 h-4 rotate-180" />
+                        </button>
+                        <div className="h-px bg-border"></div>
+                        <button
+                          onClick={() => setSceneCount(prev => Math.max(prev - 1, 1))}
+                          className="px-3 py-2 text-muted-foreground hover:text-neon-red hover:bg-neon-red/10 transition-colors"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground">จำนวนฉาก</span>
+                  </div>
+
+                  {/* Arrow */}
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground">ประมาณ</span>
+                    <span className="text-muted-foreground">→</span>
+                  </div>
+
+                  {/* Total Duration */}
+                  <div className="flex flex-col items-center p-4 rounded-xl border border-neon-red/30 bg-neon-red/5">
+                    <span className="text-2xl font-bold text-neon-red">~{sceneCount * 8}s</span>
+                    <span className="text-[10px] text-muted-foreground">ความยาวรวม</span>
+                  </div>
+                </div>
+
+                {/* Auto-Calc Toggle */}
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30">
+                  <div className="w-2 h-2 rounded-full bg-neon-red"></div>
+                  <div className="flex-1">
+                    <span className="text-xs font-medium text-foreground">Auto-Calc</span>
+                    <p className="text-[10px] text-muted-foreground">ระบบคำนวณจากความยาวเฉลี่ย 8 วินาทีต่อฉาก</p>
+                  </div>
+                </div>
+
+                {/* Smart Loop Toggle */}
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-xs font-medium text-foreground">โหมดวนซ้ำไร้รอยต่อ (Smart Loop)</span>
                   </div>
                   <Switch className="data-[state=checked]:bg-neon-red" />
                 </div>
@@ -1469,4 +1970,4 @@ const VeoflowPanel = () => {
   );
 };
 
-export default VeoflowPanel;
+export default NetflowPanel;
