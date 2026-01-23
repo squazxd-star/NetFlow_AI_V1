@@ -1,0 +1,212 @@
+{
+    "name": "Netflow AI - NetCast Producer (Google Flow)",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "netcast-producer",
+                "responseMode": "lastNode",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ],
+            "id": "webhook-netcast",
+            "name": "Webhook (NetCast UI)"
+        },
+        {
+            "parameters": {
+                "modelId": "gemini-1.5-flash",
+                "prompt": "=Create a podcast script between Host A and Host B about: '{{$json.body.netcastTopic}}'.\nStyle: {{$json.body.selectedStoryStyle}}\nHost A Personality: {{$json.body.netcastHostType}}\nHost B Personality: {{$json.body.netcastGuestType}}\n\nFormat as JSON: [{\"speaker\": \"A\", \"text\": \"...\"}, {\"speaker\": \"B\", \"text\": \"...\"}]",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.googleGemini",
+            "typeVersion": 1,
+            "position": [
+                500,
+                300
+            ],
+            "id": "gemini-dialogue",
+            "name": "Gemini 1.5 (Dialogue)"
+        },
+        {
+            "parameters": {
+                "jsCode": "const script = JSON.parse($input.first().json.text);\nreturn script.map(line => ({ json: line }));"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 1,
+            "position": [
+                750,
+                300
+            ],
+            "id": "split-lines",
+            "name": "Split Dialogue"
+        },
+        {
+            "parameters": {
+                "url": "https://texttospeech.googleapis.com/v1/text:synthesize",
+                "method": "POST",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "input.text",
+                            "value": "={{$json.text}}"
+                        },
+                        {
+                            "name": "voice.name",
+                            "value": "={{$json.speaker === 'A' ? 'th-TH-Neural2-C' : 'th-TH-Neural2-B'}}"
+                        },
+                        {
+                            "name": "voice.languageCode",
+                            "value": "th-TH"
+                        },
+                        {
+                            "name": "audioConfig.audioEncoding",
+                            "value": "MP3"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                1000,
+                300
+            ],
+            "id": "google-tts-dialogue",
+            "name": "Google Cloud TTS (Multi-Voice)"
+        },
+        {
+            "parameters": {
+                "functionCode": "// This node would typically use generic FFmpeg or binary merge logic\n// For this example, we return the list of audio clips\nreturn { \n  json: { \n    status: \"success\", \n    clips: $items.map(i => i.json.audioContent) \n  } \n};"
+            },
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 1,
+            "position": [
+                1250,
+                300
+            ],
+            "id": "audio-merge",
+            "name": "Merge Audio (Logic)"
+        },
+        {
+            "parameters": {
+                "url": "https://us-central1-aiplatform.googleapis.com/v1/projects/YOUR_PROJECT_ID/locations/us-central1/publishers/google/models/veo:predict",
+                "method": "POST",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeader",
+                "sendBody": true,
+                "contentType": "json",
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "instances[0].prompt",
+                            "value": "={{$node[\"Webhook (NetCast UI)\"].json.body.netcastTopic}} podcast background"
+                        },
+                        {
+                            "name": "parameters.sampleCount",
+                            "value": 1
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                1450,
+                300
+            ],
+            "id": "google-veo-bg",
+            "name": "Google Veo (Background)"
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={\n  \"status\": \"success\",\n  \"audioData\": \"{{$node[\"Merge Audio (Logic)\"].json.clips.length}} clips generated\",\n  \"videoUrl\": \"{{$json.predictions[0].video}}\"\n}",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                1650,
+                300
+            ],
+            "id": "respond-netcast",
+            "name": "Respond to NetCast"
+        }
+    ],
+    "connections": {
+        "Webhook (NetCast UI)": {
+            "main": [
+                [
+                    {
+                        "node": "Gemini 1.5 (Dialogue)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gemini 1.5 (Dialogue)": {
+            "main": [
+                [
+                    {
+                        "node": "Split Dialogue",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Split Dialogue": {
+            "main": [
+                [
+                    {
+                        "node": "Google Cloud TTS (Multi-Voice)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Google Cloud TTS (Multi-Voice)": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Audio (Logic)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Merge Audio (Logic)": {
+            "main": [
+                [
+                    {
+                        "node": "Google Veo (Background)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Google Veo (Background)": {
+            "main": [
+                [
+                    {
+                        "node": "Respond to NetCast",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}
