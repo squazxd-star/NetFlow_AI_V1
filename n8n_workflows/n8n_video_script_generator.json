@@ -19,24 +19,28 @@
         },
         {
             "parameters": {
-                "modelId": "gemini-1.5-flash",
-                "prompt": "=Generate a viral TikTok video script for a product named '{{$json.body.productName}}'. \nStyle: {{$json.body.saleStyle}}\nTone: {{$json.body.voiceTone}}\nLanguage: {{$json.body.language}}\n\nOutput ONLY the script text, no metadata.",
+                "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyClw40WEhG3zjS2_ama_pTbTQUkvZaRiOg",
+                "method": "POST",
+                "sendBody": true,
+                "contentType": "json",
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "contents[0].parts[0].text",
+                            "value": "=Generate a viral TikTok video script for a product named '{{$json.body.productName}}'. \nStyle: {{$json.body.saleStyle}}\nTone: {{$json.body.voiceTone}}\nLanguage: {{$json.body.language}}\n\nOutput ONLY the script text, no metadata."
+                        }
+                    ]
+                },
                 "options": {}
             },
-            "type": "n8n-nodes-base.googleGemini",
-            "typeVersion": 1,
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
             "position": [
                 500,
                 300
             ],
             "id": "gemini-script",
-            "name": "Gemini 1.5 (Script Writer)",
-            "credentials": {
-                "googleGeminiApi": {
-                    "id": "YOUR_GEMINI_CREDENTIAL_ID",
-                    "name": "Google Gemini Account"
-                }
-            }
+            "name": "Gemini 2.0 Flash (HTTP)"
         },
         {
             "parameters": {
@@ -89,7 +93,7 @@
                     "parameters": [
                         {
                             "name": "instances[0].prompt",
-                            "value": "={{$node[\"Gemini 1.5 (Script Writer)\"].json.text}}"
+                            "value": "={{$node[\"Gemini 2.0 Flash (HTTP)\"].json.candidates[0].content.parts[0].text}}"
                         },
                         {
                             "name": "parameters.sampleCount",
@@ -111,7 +115,7 @@
         {
             "parameters": {
                 "respondWith": "json",
-                "responseBody": "={\n  \"status\": \"success\",\n  \"script\": \"{{$node[\"Gemini 1.5 (Script Writer)\"].json.text}}\",\n  \"audioUrl\": \"{{$node[\"Google Cloud TTS\"].json.audioContent}}\",\n  \"videoUrl\": \"{{$json.predictions[0].video}}\"\n}",
+                "responseBody": "={\n  \"status\": \"success\",\n  \"script\": \"{{$node[\"Gemini 2.0 Flash (HTTP)\"].json.candidates[0].content.parts[0].text}}\",\n  \"audioUrl\": \"{{$node[\"Google Cloud TTS\"].json.audioContent}}\",\n  \"videoUrl\": \"{{$json.predictions[0].video}}\"\n}",
                 "options": {}
             },
             "type": "n8n-nodes-base.respondToWebhook",
@@ -129,14 +133,14 @@
             "main": [
                 [
                     {
-                        "node": "Gemini 1.5 (Script Writer)",
+                        "node": "Gemini 2.0 Flash (HTTP)",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "Gemini 1.5 (Script Writer)": {
+        "Gemini 2.0 Flash (HTTP)": {
             "main": [
                 [
                     {
