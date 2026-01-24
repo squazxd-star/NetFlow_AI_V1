@@ -19,7 +19,7 @@
         },
         {
             "parameters": {
-                "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyClw40WEhG3zjS2_ama_pTbTQUkvZaRiOg",
+                "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyClw40WEhG3zjS2_ama_pTbTQUkvZaRiOg",
                 "method": "POST",
                 "sendBody": true,
                 "contentType": "json",
