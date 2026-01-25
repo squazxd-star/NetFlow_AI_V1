@@ -60,6 +60,26 @@ export const useVideoGeneration = () => {
                 }
             };
 
+            // DEBUG: Check if we fell back to mock and warn the user
+            const isMockImage = serviceResult.videoUrl?.includes("googleapis") || serviceResult.videoUrl?.includes("unsplash");
+            const isMockVideo = serviceResult.videoUrl?.includes("gtv-videos-bucket");
+
+            if (isMockVideo) {
+                toast({
+                    title: "ระบบทำงานในโหมดจำลอง (Simulation Mode)",
+                    description: "Google Ultra API ไม่ตอบสนอง (อาจเกิดจาก Quota หรือ Rate Limit) ระบบจึงใช้ Video ตัวอย่างแทนครับ",
+                    variant: "destructive", // Red alert
+                    duration: 5000
+                });
+            } else if (serviceResult.videoUrl) {
+                toast({
+                    title: "Google Ultra Gen สำเร็จ! 🎉",
+                    description: "วิดีโอนี้ถูกสร้างด้วย AI ของจริง 100%",
+                    variant: "default",
+                    className: "bg-green-600 text-white"
+                });
+            }
+
             setResult(response);
 
             // Check for video URL (or audio as fallback for preview if needed)

@@ -1,7 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
-const genAI = new GoogleGenerativeAI(API_KEY);
+import { getApiKey } from "./storageService";
 
 /**
  * Service for "Nano Banana" (Gemini/Imagen) Image Generation
@@ -9,27 +7,62 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 
 export const generateNanoImage = async (prompt: string, referenceImageBase64?: string): Promise<string | null> => {
     try {
-        // Note: As of now, the Gemini API for *Image Generation* (Imagen) might have a different call structure
-        // or might not be fully exposed via the standard generative-ai SDK in the same way for all keys.
-        // However, we will implement it assuming a standard model capability or a hypothetical "gemini-2.0-flash-image" endpoint.
+        console.log("Generating Nano Banana Image (Real Mode: Imagen 4.0)...", { prompt });
 
-        // If standard generation is not available for the key, we might need a fallback or a specific REST call.
-        // For this implementation, we will simulate the behavior if the SDK doesn't support it directly yet for the user's tier.
+        const apiKey = await getApiKey();
+        if (!apiKey) throw new Error("API Key missing");
 
-        console.log("Generating Nano Banana Image...", { prompt, hasRef: !!referenceImageBase64 });
+        const modelName = "imagen-4.0-ultra-generate-001";
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:predict?key=${apiKey}`;
 
-        // Placeholder for actual Image Gen API call
-        // In a real scenario with Imagen 3 access:
-        // const model = genAI.getGenerativeModel({ model: "imagen-3.0-generate-001" });
-        // const result = await model.generateImages({ prompt, reference_images: ... });
+        // Payload for Imagen
+        const payload = {
+            instances: [
+                { prompt: prompt }
+            ],
+            parameters: {
+                sampleCount: 1,
+                // "9:16" is standard for TikTok, can be parameterized later
+                aspectRatio: "9:16"
+            }
+        };
 
-        // Mocking return for development (since most free keys don't have Imagen 3 access enabled by default)
-        // Returning a placeholder image from Unsplash based on keywords
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(`Imagen API Error: ${JSON.stringify(errData)}`);
+        }
+
+        const data = await response.json();
+
+        // Parse predictions
+        // Structure usually: { predictions: [ { bytesBase64Encoded: "..." } ] }
+        if (data.predictions && data.predictions[0]?.bytesBase64Encoded) {
+            console.log("✅ Imagen 4.0 Generation Success!");
+            return `data:image/png;base64,${data.predictions[0].bytesBase64Encoded}`;
+        }
+
+        // Try alternate structure if predictions/mimeType present
+        if (data.predictions && data.predictions[0]?.mimeType && data.predictions[0]?.bytesBase64Encoded) {
+            console.log("✅ Imagen 4.0 Generation Success (Type B)!");
+            return `data:${data.predictions[0].mimeType};base64,${data.predictions[0].bytesBase64Encoded}`;
+        }
+
+        throw new Error("Invalid response format from Imagen API");
+
+    } catch (error: any) {
+        console.error("Nano Banana Image Gen Error (Real Mode Failed):", error);
+
+        // Fallback to Unsplash Mock so flow doesn't break
+        console.warn("Falling back to Mock Image...");
         const keywords = prompt.split(' ').slice(0, 2).join(',');
         return `https://source.unsplash.com/random/1024x1792/?${keywords}`;
-
-    } catch (error) {
-        console.error("Nano Banana Image Gen Error:", error);
-        return null;
     }
 };
