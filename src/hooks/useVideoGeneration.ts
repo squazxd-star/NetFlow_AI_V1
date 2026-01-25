@@ -1,30 +1,132 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { runFullWorkflow } from "../services/geminiService";
 import { generateNanoImage } from "../services/imageGenService";
 import { stitchVideos } from "../services/videoProcessingService";
 import { VideoGenerationResponse, AdvancedVideoRequest } from "../types/netflow";
 import { useToast } from "./use-toast";
 
+// Check if running as Chrome Extension
+const isExtension = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage;
+
 export const useVideoGeneration = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<VideoGenerationResponse | null>(null);
+    const [rpaStatus, setRpaStatus] = useState<string>("idle");
     const { toast } = useToast();
 
+    // Listen for messages from Service Worker (RPA completion)
+    useEffect(() => {
+        if (!isExtension) return;
+
+        const handleMessage = (message: any) => {
+            console.log("[Hook] Received message from SW:", message.type);
+
+            if (message.type === "VIDEO_GENERATION_COMPLETE") {
+                setIsLoading(false);
+                setRpaStatus("completed");
+                setResult({
+                    success: true,
+                    message: "Generated via VideoFX RPA",
+                    data: {
+                        script: "Video generated via RPA",
+                        videoUrl: message.videoUrl
+                    }
+                });
+                toast({
+                    title: "🎬 สร้างวิดีโอสำเร็จ!",
+                    description: "VideoFX RPA ทำงานเสร็จสิ้น",
+                    className: "bg-green-600 text-white"
+                });
+            }
+
+            if (message.type === "VIDEO_GENERATION_ERROR") {
+                setIsLoading(false);
+                setRpaStatus("error");
+                setError(message.error);
+                toast({
+                    title: "❌ เกิดข้อผิดพลาด",
+                    description: message.error,
+                    variant: "destructive"
+                });
+            }
+        };
+
+        chrome.runtime.onMessage.addListener(handleMessage);
+        return () => chrome.runtime.onMessage.removeListener(handleMessage);
+    }, [toast]);
+
+    // Generate video using RPA (VideoFX)
+    const generateWithRPA = useCallback(async (prompt: string) => {
+        if (!isExtension) {
+            toast({
+                title: "ไม่สามารถใช้ RPA ได้",
+                description: "กรุณา Load Extension ใน Chrome ก่อน (chrome://extensions)",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+        setRpaStatus("starting");
+
+        try {
+            toast({
+                title: "🚀 เริ่ม VideoFX RPA",
+                description: "กำลังเปิด Google VideoFX...",
+            });
+
+            // Send message to service worker to start RPA
+            chrome.runtime.sendMessage({
+                type: "START_VIDEO_GENERATION",
+                payload: { prompt }
+            }, (response) => {
+                if (response?.success) {
+                    setRpaStatus("running");
+                    toast({
+                        title: "⏳ กำลังสร้างวิดีโอ...",
+                        description: "รอสักครู่ VideoFX กำลังทำงาน (1-5 นาที)",
+                    });
+                } else {
+                    throw new Error("Failed to start RPA");
+                }
+            });
+
+        } catch (err: any) {
+            setError(err.message);
+            setIsLoading(false);
+            setRpaStatus("error");
+            toast({
+                title: "เกิดข้อผิดพลาด",
+                description: err.message,
+                variant: "destructive"
+            });
+        }
+    }, [toast]);
+
+    // Generate video using API (existing logic)
     const generate = async (data: any) => {
         setIsLoading(true);
         setError(null);
         setResult(null);
 
         try {
-            // New Logic: Use Local Gemini Service
+            // Check if RPA mode is enabled
+            const useRPA = localStorage.getItem("netflow_use_rpa") === "true";
+
+            if (useRPA && data.aiPrompt) {
+                // Use RPA mode
+                await generateWithRPA(data.aiPrompt || `Create a video for ${data.productName}`);
+                return;
+            }
+
+            // Existing API Logic
             let payload: any = {
                 productName: data.productName || "สินค้าทั่วไป",
-                // Common fields
             };
 
             if (data.userImage) {
-                // Advanced Workflow Mapping
                 payload = {
                     ...payload,
                     prompt: data.aiPrompt || `Video for ${data.productName}`,
@@ -34,7 +136,6 @@ export const useVideoGeneration = () => {
                     concatenate: data.concatenate || false
                 };
             } else {
-                // Basic Script Workflow Mapping
                 payload = {
                     ...payload,
                     style: data.saleStyle || "fun",
@@ -45,84 +146,34 @@ export const useVideoGeneration = () => {
 
             const serviceResult = await runFullWorkflow(payload);
 
-
-
-            // Construct response compatible with expected format
-            // If we have audioUrl, we treat it as a success. 
-            // Note: VideoUrl is placeholder in local service for now.
             const response = {
                 success: true,
                 message: "Generated via Gemini Service",
                 data: {
                     script: serviceResult.script,
-                    videoUrl: serviceResult.videoUrl, // May be undefined
+                    videoUrl: serviceResult.videoUrl,
                     audioUrl: serviceResult.audioUrl
                 }
             };
 
-            // DEBUG: Check if we fell back to mock and warn the user
-            const isMockImage = serviceResult.videoUrl?.includes("googleapis") || serviceResult.videoUrl?.includes("unsplash");
             const isMockVideo = serviceResult.videoUrl?.includes("gtv-videos-bucket");
 
             if (isMockVideo) {
                 toast({
                     title: "ระบบทำงานในโหมดจำลอง (Simulation Mode)",
-                    description: "Google Ultra API ไม่ตอบสนอง (อาจเกิดจาก Quota หรือ Rate Limit) ระบบจึงใช้ Video ตัวอย่างแทนครับ",
-                    variant: "destructive", // Red alert
+                    description: "ระบบใช้ Video ตัวอย่างแทนครับ",
+                    variant: "destructive",
                     duration: 5000
                 });
             } else if (serviceResult.videoUrl) {
                 toast({
-                    title: "Google Ultra Gen สำเร็จ! 🎉",
-                    description: "วิดีโอนี้ถูกสร้างด้วย AI ของจริง 100%",
-                    variant: "default",
+                    title: "สร้างวิดีโอสำเร็จ! 🎉",
+                    description: "วิดีโอถูกสร้างเรียบร้อยแล้ว",
                     className: "bg-green-600 text-white"
                 });
             }
 
             setResult(response);
-
-            // Check for video URL (or audio as fallback for preview if needed)
-            const videoUrl = response.data?.videoUrl;
-
-            if (videoUrl) {
-                // Check if running as extension with access to tabs API
-                // @ts-ignore
-                if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
-                    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-                    if (tab?.id) {
-                        chrome.tabs.sendMessage(tab.id, {
-                            type: 'SHOW_VIDEO_RESULT',
-                            videoUrl: videoUrl
-                        }).catch(e => {
-                            console.warn("Could not send message to content script (likely not injected on this page).", e);
-                            window.open(videoUrl, '_blank');
-                        });
-                    }
-                } else {
-                    // Fallback for localhost / web app mode
-                    console.log("Not in extension mode, opening video in new tab");
-                    window.open(videoUrl, '_blank');
-                }
-            } else if (response.data?.audioUrl) {
-                // If only audio is generated, maybe play it or log it
-                toast({
-                    title: "สร้างสคริปต์และเสียงสำเร็จ",
-                    description: "สามารถฟังเสียงตัวอย่างได้ (วิดีโอต้องใช้ Cloud Backend)",
-                    variant: "default",
-                });
-                // Optional: Open audio in new tab if no video
-                // window.open(response.data.audioUrl, '_blank');
-            }
-
-            if (!response.data?.audioUrl && !videoUrl) {
-                toast({
-                    title: "สร้างสคริปต์สำเร็จ",
-                    description: "แต่ไม่สามารถสร้างเสียง/วิดีโอได้ในขณะนี้",
-                    variant: "default",
-                });
-            }
-
             return response;
 
         } catch (err: any) {
@@ -164,9 +215,12 @@ export const useVideoGeneration = () => {
 
     return {
         generate,
+        generateWithRPA,
         isLoading,
         error,
         result,
+        rpaStatus,
         downloadVideo,
+        isExtension
     };
 };

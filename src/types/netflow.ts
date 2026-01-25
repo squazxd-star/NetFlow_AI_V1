@@ -77,6 +77,7 @@ export const voiceToneOptions: { value: VoiceToneOption; label: string }[] = [
 ];
 
 export interface VideoGenerationResponse {
+    success: boolean;
     message: string;
     data?: any;
 }
