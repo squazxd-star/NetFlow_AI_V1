@@ -75,3 +75,9 @@ export const voiceToneOptions: { value: VoiceToneOption; label: string }[] = [
     { value: "friendly", label: "เป็นกันเอง/อบอุ่น" },
     { value: "professional", label: "มืออาชีพ/น่าเชื่อถือ" },
 ];
+
+export interface VideoGenerationResponse {
+    success: boolean;
+    message: string;
+    data?: any;
+}

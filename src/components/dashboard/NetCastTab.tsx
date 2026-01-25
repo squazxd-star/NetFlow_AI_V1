@@ -73,9 +73,9 @@ const NetCastTab = () => {
     const [netcastProductionOpen, setNetcastProductionOpen] = useState(true);
     const [showCustomStyleInput, setShowCustomStyleInput] = useState(false);
 
-    // Form submission handler for n8n integration
+    // Form submission handler
     const onSubmit = async (data: NetCastFormData) => {
-        console.log("NetCast form data ready for n8n:", data);
+        console.log("NetCast form data ready:", data);
         await generate({
             type: "netcast-pro",
             ...data

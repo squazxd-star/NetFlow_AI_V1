@@ -153,9 +153,9 @@ const CreateVideoTab = () => {
         }
     };
 
-    // Form submission handler for n8n integration
+    // Form submission handler
     const onSubmit = async (data: CreateVideoFormData) => {
-        console.log("Form data ready for n8n:", data);
+        console.log("Form data ready for video generation:", data);
         await generate({
             type: "video-generation",
             ...data

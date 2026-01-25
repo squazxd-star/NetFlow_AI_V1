@@ -78,10 +78,10 @@ const TikTokSettingsTab = () => {
         input.click();
     };
 
-    // Form submission handler for n8n integration
+    // Form submission handler
     const onSubmit = (data: TikTokSettingsFormData) => {
-        console.log("TikTok settings form data ready for n8n:", data);
-        // TODO: Send to n8n webhook
+        console.log("TikTok settings form data ready:", data);
+        // TODO: Send to backend
     };
 
     return (
@@ -146,20 +146,7 @@ const TikTokSettingsTab = () => {
                 </div>
             </section>
 
-            {/* n8n Connection */}
-            <section className="glass-card p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-neon-red" />
-                    <span className="text-sm font-semibold text-foreground">เชื่อมต่อระบบอัตโนมัติ</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                    กดปุ่มด้านล่างเพื่อเชื่อมต่อ TikTok Studio กับ Extension ให้สามารถดึงข้อมูลได้อัตโนมัติ
-                </p>
-                <button className="w-full py-3 rounded-xl font-medium text-neon-red border border-neon-red hover:bg-neon-red/10 transition-colors flex items-center justify-center gap-2">
-                    <Link className="w-4 h-4" />
-                    เชื่อมต่อ n8n Workflow
-                </button>
-            </section>
+
 
             {/* Product Data Card */}
             <section className="glass-card overflow-hidden">

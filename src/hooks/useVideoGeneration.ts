@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { generateVideo, VideoGenerationResponse } from "../services/n8nApi";
+import { runFullWorkflow } from "../services/geminiService";
+import { VideoGenerationResponse } from "../types/netflow";
 import { useToast } from "./use-toast";
 
 export const useVideoGeneration = () => {
@@ -14,43 +15,69 @@ export const useVideoGeneration = () => {
         setResult(null);
 
         try {
-            // 1. Call API
-            const response = await generateVideo(data);
+            // New Logic: Use Local Gemini Service
+            // Map form data to ScriptRequest
+            const scriptRequest = {
+                productName: data.productName || "สินค้าทั่วไป",
+                style: data.saleStyle || "fun",
+                tone: data.voiceTone || "excited",
+                language: data.language || "th"
+            };
+
+            const serviceResult = await runFullWorkflow(scriptRequest);
+
+            // Construct response compatible with expected format
+            // If we have audioUrl, we treat it as a success. 
+            // Note: VideoUrl is placeholder in local service for now.
+            const response = {
+                success: true,
+                message: "Generated via Gemini Service",
+                data: {
+                    script: serviceResult.script,
+                    videoUrl: serviceResult.videoUrl, // May be undefined
+                    audioUrl: serviceResult.audioUrl
+                }
+            };
+
             setResult(response);
 
-            // 2. Check for video URL in response
-            // Assuming response.data.videoUrl or similar exists based on n8n workflow
-            // For testing purposes, we might fallback to a test video if API didn't return one yet
+            // Check for video URL (or audio as fallback for preview if needed)
             const videoUrl = response.data?.videoUrl;
 
             if (videoUrl) {
-                // 3. Send message to Content Script to show overlay
-                // We need to query the active tab to send the message
                 const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
                 if (tab?.id) {
                     chrome.tabs.sendMessage(tab.id, {
                         type: 'SHOW_VIDEO_RESULT',
                         videoUrl: videoUrl
                     }).catch(e => {
-                        console.warn("Could not send message to content script. Is it loaded?", e);
-                        // Fallback: Open in new tab if overlay fails
+                        console.warn("Could not send message to content script.", e);
                         window.open(videoUrl, '_blank');
                     });
                 }
-            } else {
-                // No video URL immediately? Maybe async? 
-                // For now, let's toast success.
+            } else if (response.data?.audioUrl) {
+                // If only audio is generated, maybe play it or log it
+                toast({
+                    title: "สร้างสคริปต์และเสียงสำเร็จ",
+                    description: "สามารถฟังเสียงตัวอย่างได้ (วิดีโอต้องใช้ Cloud Backend)",
+                    variant: "default",
+                });
+                // Optional: Open audio in new tab if no video
+                // window.open(response.data.audioUrl, '_blank');
             }
 
-            toast({
-                title: "ส่งคำสั่งสำเร็จ",
-                description: "ระบบกำลังเริ่มสร้างวิดีโอของคุณ",
-                variant: "default",
-            });
+            if (!response.data?.audioUrl && !videoUrl) {
+                toast({
+                    title: "สร้างสคริปต์สำเร็จ",
+                    description: "แต่ไม่สามารถสร้างเสียง/วิดีโอได้ในขณะนี้",
+                    variant: "default",
+                });
+            }
+
             return response;
 
         } catch (err: any) {
-            const errorMessage = err.message || "เกิดข้อผิดพลาดในการเชื่อมต่อกับระบบ";
+            const errorMessage = err.message || "เกิดข้อผิดพลาดในการเชื่อมต่อกับระบบ AI";
             setError(errorMessage);
             toast({
                 title: "เกิดข้อผิดพลาด",
