@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { runFullWorkflow } from "../services/geminiService";
-import { VideoGenerationResponse } from "../types/netflow";
+import { generateNanoImage } from "../services/imageGenService";
+import { stitchVideos } from "../services/videoProcessingService";
+import { VideoGenerationResponse, AdvancedVideoRequest } from "../types/netflow";
 import { useToast } from "./use-toast";
 
 export const useVideoGeneration = () => {
@@ -16,15 +18,34 @@ export const useVideoGeneration = () => {
 
         try {
             // New Logic: Use Local Gemini Service
-            // Map form data to ScriptRequest
-            const scriptRequest = {
+            let payload: any = {
                 productName: data.productName || "สินค้าทั่วไป",
-                style: data.saleStyle || "fun",
-                tone: data.voiceTone || "excited",
-                language: data.language || "th"
+                // Common fields
             };
 
-            const serviceResult = await runFullWorkflow(scriptRequest);
+            if (data.userImage) {
+                // Advanced Workflow Mapping
+                payload = {
+                    ...payload,
+                    prompt: data.aiPrompt || `Video for ${data.productName}`,
+                    userImage: data.userImage,
+                    style: data.saleStyle || "cinematic",
+                    loopCount: data.loopCount || 1,
+                    concatenate: data.concatenate || false
+                };
+            } else {
+                // Basic Script Workflow Mapping
+                payload = {
+                    ...payload,
+                    style: data.saleStyle || "fun",
+                    tone: data.voiceTone || "excited",
+                    language: data.language || "th"
+                };
+            }
+
+            const serviceResult = await runFullWorkflow(payload);
+
+
 
             // Construct response compatible with expected format
             // If we have audioUrl, we treat it as a success. 
@@ -45,15 +66,23 @@ export const useVideoGeneration = () => {
             const videoUrl = response.data?.videoUrl;
 
             if (videoUrl) {
-                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-                if (tab?.id) {
-                    chrome.tabs.sendMessage(tab.id, {
-                        type: 'SHOW_VIDEO_RESULT',
-                        videoUrl: videoUrl
-                    }).catch(e => {
-                        console.warn("Could not send message to content script.", e);
-                        window.open(videoUrl, '_blank');
-                    });
+                // Check if running as extension with access to tabs API
+                // @ts-ignore
+                if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
+                    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                    if (tab?.id) {
+                        chrome.tabs.sendMessage(tab.id, {
+                            type: 'SHOW_VIDEO_RESULT',
+                            videoUrl: videoUrl
+                        }).catch(e => {
+                            console.warn("Could not send message to content script (likely not injected on this page).", e);
+                            window.open(videoUrl, '_blank');
+                        });
+                    }
+                } else {
+                    // Fallback for localhost / web app mode
+                    console.log("Not in extension mode, opening video in new tab");
+                    window.open(videoUrl, '_blank');
                 }
             } else if (response.data?.audioUrl) {
                 // If only audio is generated, maybe play it or log it

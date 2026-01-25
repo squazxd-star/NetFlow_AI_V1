@@ -156,9 +156,22 @@ const CreateVideoTab = () => {
     // Form submission handler
     const onSubmit = async (data: CreateVideoFormData) => {
         console.log("Form data ready for video generation:", data);
+
+        // Prepare data for advanced workflow
+        // If image uploaded, use the first one as reference
+        const userImage = characterImages[0] || undefined;
+        // Use clipCount as loop count (parse if string)
+        const loopCount = typeof data.clipCount === 'number' ? data.clipCount : 1;
+
+        // Use smartLoop toggle as "concatenate" trigger for now, or just default to true if loop > 1
+        const concatenate = data.smartLoop;
+
         await generate({
             type: "video-generation",
-            ...data
+            ...data,
+            userImage,   // Pass the base64 image
+            loopCount,   // Pass number of clips
+            concatenate: concatenate // Pass stitch preference
         });
     };
 

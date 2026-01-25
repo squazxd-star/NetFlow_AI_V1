@@ -77,7 +77,21 @@ export const voiceToneOptions: { value: VoiceToneOption; label: string }[] = [
 ];
 
 export interface VideoGenerationResponse {
-    success: boolean;
     message: string;
     data?: any;
+}
+
+export interface AdvancedVideoRequest {
+    productName: string;
+    prompt: string;
+    userImage?: string; // Base64 or Blob URL
+    style: string;
+    loopCount: number; // 1, 3, 5
+    concatenate: boolean;
+}
+
+export interface GeneratedAsset {
+    type: 'image' | 'video' | 'audio';
+    url: string;
+    blob?: Blob;
 }
