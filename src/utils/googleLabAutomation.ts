@@ -268,6 +268,20 @@ export const runTwoStagePipeline = async (config: PipelineConfig): Promise<{
         // ==================== STAGE 1: IMAGE GENERATION ====================
         console.log("\n========== STAGE 1: IMAGE GENERATION ==========\n");
 
+        // 0. CHECK START STATE (Dashboard vs Workspace)
+        console.log("👀 Checking start state...");
+
+        // Try to find "New Project" button (usually on Dashboard)
+        const dashboardButton = await clickByText('โปรเจ็กต์ใหม่') ||
+            await clickByText('New project') ||
+            await clickByText('เริ่มใหม่') ||
+            await clickByText('Start new');
+
+        if (dashboardButton) {
+            console.log("✅ Clicked 'New Project' from dashboard");
+            await delay(3000); // Wait for workspace to load
+        }
+
         // 1.1 Switch to Image tab
         await switchToImageTab();
         await delay(1500);
