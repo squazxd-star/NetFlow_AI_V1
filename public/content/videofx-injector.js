@@ -311,38 +311,75 @@ async function findPromptInput() {
 // Find the generate button
 async function findGenerateButton() {
     console.log("[VideoFX] Searching for generate button...");
-    const selectors = [
-        'button[aria-label*="Generate"]',
-        'button[aria-label*="generate"]',
-        'button[aria-label*="สร้าง"]',
-        '[data-testid*="generate"]',
-        'button[type="submit"]'
-    ];
 
-    // Priority 1: Semantic button with "Generate" text/label
-    for (const selector of selectors) {
-        const elements = document.querySelectorAll(selector);
-        for (const el of elements) {
-            if (isVisible(el)) {
-                console.log("[VideoFX] Found visible button with selector:", selector);
-                return el;
-            }
+    // Buttons to EXCLUDE (these are tool buttons, not the main Generate button)
+    const excludeKeywords = ['เครื่องมือ', 'ฉาก', 'tool', 'scene', 'setting', 'option'];
+
+    // Helper to check if button should be excluded
+    const shouldExclude = (text) => {
+        const lowerText = text.toLowerCase();
+        return excludeKeywords.some(keyword => lowerText.includes(keyword.toLowerCase()));
+    };
+
+    // Priority 1: Find button with aria-label containing Generate/สร้าง
+    const ariaButtons = document.querySelectorAll('button[aria-label*="Generate"], button[aria-label*="generate"], button[aria-label*="สร้าง"]');
+    for (const btn of ariaButtons) {
+        if (isVisible(btn) && !shouldExclude(btn.textContent || '')) {
+            console.log("[VideoFX] Found button via aria-label:", btn.getAttribute('aria-label'));
+            debugHighlight(btn, 'green');
+            return btn;
         }
     }
 
-    // Priority 2: Any visible button containing keywords
+    // Priority 2: Find button with submit type (usually the main action button)
+    const submitButtons = document.querySelectorAll('button[type="submit"]');
+    for (const btn of submitButtons) {
+        if (isVisible(btn) && !shouldExclude(btn.textContent || '')) {
+            console.log("[VideoFX] Found submit button");
+            debugHighlight(btn, 'green');
+            return btn;
+        }
+    }
+
+    // Priority 3: Find button with exact "สร้าง" text (not "เครื่องมือสร้างฉาก")
     const buttons = document.querySelectorAll('button');
     for (const btn of buttons) {
-        const text = btn.textContent?.toLowerCase() || '';
-        if (text.includes('generate') || text.includes('create') || text.includes('สร้าง')) {
+        const text = btn.textContent?.trim() || '';
+
+        // Skip if it contains excluded keywords
+        if (shouldExclude(text)) continue;
+
+        // Match if text is exactly "สร้าง" or contains "generate"
+        if (text === 'สร้าง' || text.toLowerCase() === 'generate' ||
+            (text.includes('สร้าง') && !text.includes('เครื่องมือ') && !text.includes('ฉาก'))) {
             if (isVisible(btn)) {
-                console.log("[VideoFX] Found visible button by text:", btn.textContent);
+                console.log("[VideoFX] Found button with exact match:", text);
+                debugHighlight(btn, 'green');
                 return btn;
             }
         }
     }
 
-    throw new Error("Could not find generate button (Is the prompt too short or invalid?)");
+    // Priority 4: Look for a primary/prominent button (often styled differently)
+    for (const btn of buttons) {
+        const text = btn.textContent?.trim().toLowerCase() || '';
+        const className = btn.className?.toLowerCase() || '';
+
+        // Skip excluded buttons
+        if (shouldExclude(text)) continue;
+
+        // Look for primary/action buttons
+        if ((className.includes('primary') || className.includes('action') || className.includes('submit')) &&
+            (text.includes('generate') || text.includes('create') || text.includes('สร้าง'))) {
+            if (isVisible(btn)) {
+                console.log("[VideoFX] Found primary action button:", text);
+                debugHighlight(btn, 'green');
+                return btn;
+            }
+        }
+    }
+
+    throw new Error("Could not find generate button. Please click the 'สร้าง' button manually.");
 }
 
 // Watch for video element to appear
