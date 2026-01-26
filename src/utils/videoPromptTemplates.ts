@@ -13,8 +13,15 @@ export const basePromptTemplate = `
 [Thai dialogue]: Presenting {{productName}} with a {{emotion}} expression.
 [Emotion]: {{emotion}}
 
+*** VISUAL REFERENCE GUIDE ***
+- The uploaded reference image contains TWO main elements side-by-side:
+  1. LEFT SIDE: The Character reference ({{genderText}}).
+  2. RIGHT SIDE: The Product reference ({{productName}}).
+- Please generate a video where this character is interacting with this product.
+
 *** STRICT REQUIREMENTS ***
-- The person in the video MUST be a {{genderText}} ONLY.
+- The person in the video MUST use the appearance of the person on the LEFT of the reference image.
+- The product in the video MUST look like the object on the RIGHT of the reference image.
 - Nationality: Thai people only.
 - AGE: Adult only. DO NOT include babies, infants, or children.
 - No text overlays unless specified in dialogue.

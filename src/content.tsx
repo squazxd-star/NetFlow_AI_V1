@@ -70,20 +70,29 @@ const ContentScriptApp = () => {
         // You might need to inspect the target site for the exact selector
         fillPrompt(finalPrompt, 'textarea[placeholder*="Describe"]');
 
-        // 3. Upload Reference Image (Product)
-        if (imageBase64) {
-            // Assuming the input is the standard file input
-            uploadImageToWeb(imageBase64, 'input[type="file"]');
+        // 3. Image Handling Logic (Dual Image Strategy)
+        let finalImageToUpload = imageBase64; // Default to product only
+
+        if (imageBase64 && personImageBase64) {
+            console.log("Both person and product images detected. Merging...");
+            try {
+                // Import dynamically to avoid loading canvas logic if not needed, 
+                // but since it's a utility, static import is also fine if we moved it to top.
+                // We'll trust the bundler or just do dynamic import here for safety.
+                const { mergeImages } = await import('./utils/imageProcessing');
+                finalImageToUpload = await mergeImages(personImageBase64, imageBase64, 'horizontal');
+                console.log("Images merged successfully.");
+            } catch (err) {
+                console.error("Failed to merge images, falling back to product only:", err);
+            }
+        } else if (personImageBase64 && !imageBase64) {
+            finalImageToUpload = personImageBase64;
         }
 
-        // 4. Upload Person/Character Image (if separate input exists)
-        if (personImageBase64) {
-            // If the site has a second input for character ref, use a specific selector
-            // For now, assuming it might be the same or a different one. 
-            // If it's the same, we might need to wait or handle multiple file uploads.
-            // Let's assume a hypothetical second input or just log it for now.
-            console.log("Person image injection requested (selector needs verification)");
-            // uploadImageToWeb(personImageBase64, 'input[name="character_ref"]'); 
+        // 4. Upload the final image (Merged or Single)
+        if (finalImageToUpload) {
+            // Assuming the input is the standard file input
+            uploadImageToWeb(finalImageToUpload, 'input[type="file"]');
         }
 
         // 5. Click Generate (Selector needs to be verified on actual site)
