@@ -61,10 +61,8 @@ const ContentScriptApp = () => {
                     emotion: emotion || "Happy"
                 });
 
-                // Image prompt for combining character + product
-                const imagePrompt = `Create a photorealistic image combining these two elements: 
-The person on the left holding or presenting the product on the right. 
-Keep the person's face EXACTLY as shown. Thai person, adult only.`;
+                // Image prompt - simple command only (detailed prompt goes to video stage)
+                const imagePrompt = `create a prompt`;
 
                 const result = await runTwoStagePipeline({
                     characterImage,
@@ -73,11 +71,27 @@ Keep the person's face EXACTLY as shown. Thai person, adult only.`;
                     videoPrompt
                 });
 
-                // Send result back to extension if needed
-                chrome.runtime.sendMessage({
-                    type: 'PIPELINE_RESULT',
-                    result
-                });
+                console.log("🎬 Pipeline Result:", result);
+
+                // Show video result in overlay if successful
+                if (result.success && result.videoUrl) {
+                    console.log("✅ Video ready! Showing in overlay...");
+                    setVideoUrl(result.videoUrl);
+
+                    // Also notify the extension popup
+                    chrome.runtime.sendMessage({
+                        type: 'VIDEO_GENERATION_COMPLETE',
+                        videoUrl: result.videoUrl,
+                        generatedImageUrl: result.generatedImageUrl
+                    });
+                } else {
+                    console.error("❌ Pipeline failed:", result.error);
+                    // Send error back to extension
+                    chrome.runtime.sendMessage({
+                        type: 'PIPELINE_ERROR',
+                        error: result.error
+                    });
+                }
             }
         };
 

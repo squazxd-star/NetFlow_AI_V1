@@ -1,113 +1,28 @@
 /**
- * Google Lab Automation Service
- * Handles the 2-Stage Pipeline: Image Gen -> Video Gen
+ * Google Lab Automation Service - SIMPLIFIED FLOW
+ * Uses "เพิ่มไปยังพรอมต์" → "ส่วนผสมในวิดีโอ" for seamless transfer
  */
 
-// --- Utility: Wait for a duration ---
+// --- Utilities ---
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// --- Utility: Wait for an element to appear ---
-const waitForElement = async (selector: string, timeout = 10000): Promise<HTMLElement | null> => {
-    const startTime = Date.now();
-    while (Date.now() - startTime < timeout) {
-        const el = document.querySelector(selector) as HTMLElement;
-        if (el) return el;
-        await delay(300);
-    }
-    console.warn(`Timeout waiting for element: ${selector}`);
-    return null;
-};
-
-// --- Utility: Wait for image generation to complete ---
-const waitForGeneratedImage = async (containerSelector: string, timeout = 60000): Promise<string | null> => {
-    console.log("⏳ Waiting for image generation to complete...");
-    const startTime = Date.now();
-
-    while (Date.now() - startTime < timeout) {
-        // Look for generated image in the result area
-        const container = document.querySelector(containerSelector);
-        if (container) {
-            // Try to find img elements that might be the result
-            const images = container.querySelectorAll('img');
-            for (const img of images) {
-                const src = img.src;
-                // Check if it's a data URL or a generated image URL (not a UI icon)
-                if (src && (src.startsWith('data:') || src.includes('generated') || img.width > 200)) {
-                    console.log("✅ Generated image found!");
-                    return src;
-                }
-            }
-            // Also check for canvas elements
-            const canvases = container.querySelectorAll('canvas');
-            for (const canvas of canvases) {
-                if (canvas.width > 200) {
-                    try {
-                        const dataUrl = canvas.toDataURL('image/png');
-                        console.log("✅ Generated image captured from canvas!");
-                        return dataUrl;
-                    } catch (e) {
-                        console.warn("Canvas tainted, cannot capture.");
-                    }
-                }
-            }
-        }
-        await delay(1000);
-    }
-    console.warn("⚠️ Timeout waiting for generated image.");
-    return null;
-};
-
-// --- Step 1: Switch to Image Tab ---
-export const switchToImageTab = async (): Promise<boolean> => {
-    console.log("🖼️ Switching to Image Tab...");
-
-    // Common selectors for the "รูปภาพ" (Image) tab
-    const possibleSelectors = [
-        'button:has-text("รูปภาพ")',
-        '[aria-label*="image"]',
-        '[data-tab="image"]',
-        'button[contains(text(), "รูปภาพ")]',
-        // More generic: find buttons containing the Thai word
-    ];
-
-    // Try to find the tab by text content
-    const allButtons = document.querySelectorAll('button');
-    for (const btn of allButtons) {
-        const text = btn.textContent?.trim() || '';
-        if (text.includes('รูปภาพ') || text.toLowerCase().includes('image')) {
-            btn.click();
-            console.log("✅ Clicked Image Tab");
-            await delay(500);
+const clickByText = async (searchText: string, tagFilter?: string): Promise<boolean> => {
+    const elements = document.querySelectorAll(tagFilter || 'button, div, span, label, a');
+    for (const el of elements) {
+        const text = el.textContent?.trim() || '';
+        if (text.includes(searchText)) {
+            (el as HTMLElement).click();
+            console.log(`✅ Clicked: "${searchText}"`);
             return true;
         }
     }
-
-    console.warn("❌ Image tab not found");
+    console.warn(`❌ Not found: "${searchText}"`);
     return false;
 };
 
-// --- Step 2: Switch to Video Tab ---
-export const switchToVideoTab = async (): Promise<boolean> => {
-    console.log("🎬 Switching to Video Tab...");
-
-    const allButtons = document.querySelectorAll('button');
-    for (const btn of allButtons) {
-        const text = btn.textContent?.trim() || '';
-        if (text.includes('วิดีโอ') || text.toLowerCase().includes('video')) {
-            btn.click();
-            console.log("✅ Clicked Video Tab");
-            await delay(500);
-            return true;
-        }
-    }
-
-    console.warn("❌ Video tab not found");
-    return false;
-};
-
-// --- Step 3: Upload Image to Current Tab's Input ---
-export const uploadImageToInput = async (base64Image: string): Promise<boolean> => {
-    console.log("⬆️ Uploading image to input...");
+// --- Upload Single Image with Crop Dialog ---
+const uploadSingleImage = async (base64Image: string, imageIndex: number): Promise<boolean> => {
+    console.log(`📷 Uploading image ${imageIndex}...`);
 
     // Convert base64 to File
     const arr = base64Image.split(',');
@@ -118,167 +33,295 @@ export const uploadImageToInput = async (base64Image: string): Promise<boolean> 
     while (n--) {
         u8arr[n] = bstr.charCodeAt(n);
     }
-    const file = new File([u8arr], 'reference_image.png', { type: mime });
+    const file = new File([u8arr], `image_${imageIndex}.png`, { type: mime });
 
-    // Find file input
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    if (!fileInput) {
-        // Try clicking the upload button first to reveal the input
-        const uploadButtons = document.querySelectorAll('button, div');
-        for (const btn of uploadButtons) {
-            if (btn.textContent?.includes('อัพโหลด') || btn.textContent?.includes('Upload')) {
+    // Click + button
+    const buttons = document.querySelectorAll('button, div');
+    for (const btn of buttons) {
+        if (btn.clientWidth < 80 && btn.clientHeight < 80) {
+            const text = btn.textContent?.trim();
+            if (text === '+' || btn.querySelector('svg')) {
                 (btn as HTMLElement).click();
-                await delay(500);
+                console.log("✅ Clicked + button");
+                await delay(800);
                 break;
             }
         }
-
-        const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-        if (!input) {
-            console.warn("❌ File input not found");
-            return false;
-        }
     }
 
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    if (input) {
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        input.files = dataTransfer.files;
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-        console.log("✅ Image uploaded");
-        return true;
+    // Click Upload area
+    await delay(500);
+    await clickByText('อัพโหลด');
+    await delay(500);
+
+    // Find file input
+    let fileInput: HTMLInputElement | null = null;
+    for (let i = 0; i < 10; i++) {
+        fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+        if (fileInput) break;
+        await delay(300);
     }
 
-    return false;
-};
-
-// --- Step 4: Fill Prompt and Trigger Generation ---
-export const fillPromptAndGenerate = async (prompt: string): Promise<boolean> => {
-    console.log("📝 Filling prompt:", prompt);
-
-    // Find textarea or input for prompt
-    const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
-    const input = document.querySelector('input[type="text"]') as HTMLInputElement;
-
-    const target = textarea || input;
-    if (!target) {
-        console.warn("❌ Prompt input not found");
+    if (!fileInput) {
+        console.warn("❌ File input not found");
         return false;
     }
 
-    target.value = prompt;
-    target.dispatchEvent(new Event('input', { bubbles: true }));
-    target.dispatchEvent(new Event('change', { bubbles: true }));
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    fileInput.files = dataTransfer.files;
+    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    console.log("✅ File injected");
+    await delay(1500);
 
-    await delay(300);
+    // Click Crop and Save
+    for (let i = 0; i < 20; i++) {
+        if (await clickByText('ครอบตัดและบันทึก')) {
+            await delay(1500);
+            return true;
+        }
+        await delay(500);
+    }
 
-    // Try to click generate/submit button
-    const allButtons = document.querySelectorAll('button');
-    for (const btn of allButtons) {
-        const text = btn.textContent?.trim().toLowerCase() || '';
-        // Look for common generate button patterns
-        if (text.includes('generate') || text.includes('create') || text.includes('สร้าง') ||
-            btn.querySelector('svg[data-icon="arrow"]') || // Arrow icon buttons
-            btn.getAttribute('aria-label')?.includes('submit')) {
+    return true;
+};
+
+// --- Wait for Generation to Complete ---
+const waitForGenerationComplete = async (timeout = 180000): Promise<boolean> => {
+    console.log("⏳ Waiting for generation to complete...");
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < timeout) {
+        // Check progress percentage
+        const allText = document.body.innerText;
+        const percentMatch = allText.match(/(\d+)%/);
+
+        if (percentMatch) {
+            const percent = parseInt(percentMatch[1]);
+            console.log(`Generation progress: ${percent}%`);
+
+            if (percent >= 100) {
+                console.log("✅ Generation complete!");
+                await delay(2000);
+                return true;
+            }
+        }
+
+        // Check if "เพิ่มไปยังพรอมต์" button appeared (means generation done)
+        const addToPromptBtn = Array.from(document.querySelectorAll('button, div, span')).find(
+            el => el.textContent?.includes('เพิ่มไปยังพรอมต์')
+        );
+        if (addToPromptBtn) {
+            console.log("✅ 'Add to prompt' button detected - generation complete!");
+            await delay(1000);
+            return true;
+        }
+
+        await delay(2000);
+    }
+
+    console.warn("⚠️ Generation timeout");
+    return false;
+};
+
+// --- Click on Generated Image ---
+const clickOnGeneratedImage = async (): Promise<boolean> => {
+    console.log("🔍 Clicking on generated image...");
+
+    // Find large images that are likely results
+    const images = document.querySelectorAll('img');
+    for (const img of images) {
+        if (img.width > 200 && img.height > 200) {
+            const parent = img.closest('button, a, [role="button"], div');
+            if (parent) {
+                (parent as HTMLElement).click();
+                console.log("✅ Clicked on result image");
+                await delay(1500);
+                return true;
+            }
+        }
+    }
+    return false;
+};
+
+// --- Fill Prompt and Generate ---
+const fillPromptAndGenerate = async (prompt: string): Promise<boolean> => {
+    console.log("📝 Filling prompt...");
+
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
+    if (!textarea) {
+        console.warn("❌ Textarea not found");
+        return false;
+    }
+
+    textarea.value = prompt;
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    await delay(500);
+
+    // Click arrow/send button
+    const buttons = Array.from(document.querySelectorAll('button'));
+    for (const btn of buttons.reverse()) {
+        const svg = btn.querySelector('svg');
+        if (svg && btn.clientWidth < 60) {
             btn.click();
-            console.log("✅ Clicked Generate button");
+            console.log("✅ Clicked generate button");
             return true;
         }
     }
 
-    // Fallback: Look for the arrow/send button (often in chat-like UIs)
-    const arrowButton = document.querySelector('button[type="submit"], button:last-of-type');
-    if (arrowButton) {
-        (arrowButton as HTMLElement).click();
-        console.log("✅ Clicked Submit button (fallback)");
-        return true;
-    }
-
-    console.warn("⚠️ Generate button not found - prompt filled, user may need to click manually");
     return false;
 };
 
-// --- Main Orchestrator: 2-Stage Pipeline ---
+// --- Wait for Video Generation ---
+const waitForVideoComplete = async (timeout = 300000): Promise<string | null> => {
+    console.log("⏳ Waiting for video generation (2-5 minutes)...");
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < timeout) {
+        // Check for video elements
+        const videos = document.querySelectorAll('video');
+        for (const video of videos) {
+            if (video.src && video.src.length > 50) {
+                console.log("✅ Video found!");
+                return video.src;
+            }
+        }
+
+        // Check for video source
+        const sources = document.querySelectorAll('source');
+        for (const source of sources) {
+            if (source.src && source.src.includes('.mp4')) {
+                return source.src;
+            }
+        }
+
+        // Check progress
+        const allText = document.body.innerText;
+        const percentMatch = allText.match(/(\d+)%/);
+        if (percentMatch) {
+            console.log(`Video progress: ${percentMatch[1]}%`);
+        }
+
+        await delay(5000);
+    }
+
+    return null;
+};
+
+// --- Switch to Image Tab ---
+const switchToImageTab = async (): Promise<boolean> => {
+    console.log("🖼️ Switching to Image Tab...");
+    return await clickByText('รูปภาพ', 'button');
+};
+
+// --- Main Pipeline Config ---
 export interface PipelineConfig {
-    characterImage: string;  // Base64
-    productImage: string;    // Base64
-    imagePrompt: string;     // Prompt for image generation (combine character + product)
-    videoPrompt: string;     // Prompt for video generation
+    characterImage: string;
+    productImage: string;
+    imagePrompt: string;
+    videoPrompt: string;
 }
 
+// ========== MAIN SIMPLIFIED PIPELINE ==========
 export const runTwoStagePipeline = async (config: PipelineConfig): Promise<{
     success: boolean;
     generatedImageUrl?: string;
+    videoUrl?: string;
     error?: string;
 }> => {
-    console.log("🚀 Starting 2-Stage Pipeline...");
+    console.log("🚀🚀🚀 Starting SIMPLIFIED Pipeline 🚀🚀🚀");
 
     try {
-        // ========== STAGE 1: Image Generation ==========
-        console.log("=== STAGE 1: Image Generation ===");
+        // ==================== STAGE 1: IMAGE GENERATION ====================
+        console.log("\n========== STAGE 1: IMAGE GENERATION ==========\n");
 
         // 1.1 Switch to Image tab
-        const imageTabSuccess = await switchToImageTab();
-        if (!imageTabSuccess) {
-            return { success: false, error: "Failed to switch to Image tab" };
-        }
-        await delay(1000);
+        await switchToImageTab();
+        await delay(1500);
 
-        // 1.2 Merge and upload images
-        const { mergeImages } = await import('./imageProcessing');
-        const mergedImage = await mergeImages(config.characterImage, config.productImage, 'horizontal');
+        // 1.2 Upload Character image
+        console.log("📷 Uploading Character...");
+        await uploadSingleImage(config.characterImage, 1);
+        await delay(1500);
 
-        const uploadSuccess = await uploadImageToInput(mergedImage);
-        if (!uploadSuccess) {
-            console.warn("Image upload failed, continuing with prompt only...");
-        }
-        await delay(500);
+        // 1.3 Upload Product image
+        console.log("📷 Uploading Product...");
+        await uploadSingleImage(config.productImage, 2);
+        await delay(1500);
 
-        // 1.3 Fill prompt and trigger generation
+        // 1.4 Fill prompt and generate
         await fillPromptAndGenerate(config.imagePrompt);
+        await delay(2000);
 
-        // 1.4 Wait for generated image
-        const generatedImageUrl = await waitForGeneratedImage('main, [role="main"], .result-container', 90000);
-
-        if (!generatedImageUrl) {
-            return { success: false, error: "Image generation timed out or failed" };
+        // 1.5 Wait for image generation to complete
+        const genComplete = await waitForGenerationComplete(180000);
+        if (!genComplete) {
+            return { success: false, error: "Image generation timeout" };
         }
 
-        console.log("=== STAGE 1 COMPLETE ===");
+        // 1.6 Click on the generated image to open detail view
+        await clickOnGeneratedImage();
+        await delay(1500);
 
-        // ========== STAGE 2: Video Generation ==========
-        console.log("=== STAGE 2: Video Generation ===");
+        // ==================== TRANSITION TO VIDEO ====================
+        console.log("\n========== TRANSITIONING TO VIDEO ==========\n");
 
-        // 2.1 Switch to Video tab
-        const videoTabSuccess = await switchToVideoTab();
-        if (!videoTabSuccess) {
-            return { success: false, error: "Failed to switch to Video tab", generatedImageUrl };
+        // 1.7 Click "เพิ่มไปยังพรอมต์" (Add to Prompt)
+        console.log("📌 Clicking 'Add to Prompt'...");
+        const addedToPrompt = await clickByText('เพิ่มไปยังพรอมต์');
+        if (!addedToPrompt) {
+            console.warn("⚠️ 'Add to Prompt' not found, trying alternative...");
         }
-        await delay(1000);
+        await delay(1500);
 
-        // 2.2 Upload the generated image
-        const videoUploadSuccess = await uploadImageToInput(generatedImageUrl);
-        if (!videoUploadSuccess) {
-            console.warn("Video image upload failed, continuing with prompt only...");
+        // 1.8 Click "ส่วนผสมในวิดีโอ" (Composition in Video)
+        console.log("🎬 Clicking 'ส่วนผสมในวิดีโอ'...");
+        const switchedToVideo = await clickByText('ส่วนผสมในวิดีโอ');
+        if (!switchedToVideo) {
+            // Try English version or alternative
+            await clickByText('Video composition');
+            await clickByText('วิดีโอ');
         }
-        await delay(500);
+        await delay(2000);
 
-        // 2.3 Fill the video prompt (but don't auto-click generate for video - let user control)
-        const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
-        if (textarea) {
-            textarea.value = config.videoPrompt;
-            textarea.dispatchEvent(new Event('input', { bubbles: true }));
-            console.log("✅ Video prompt filled - Ready for user to generate!");
+        // ==================== STAGE 2: VIDEO GENERATION ====================
+        console.log("\n========== STAGE 2: VIDEO GENERATION ==========\n");
+
+        // 2.1 Fill video prompt from NetFlow
+        console.log("📝 Filling video prompt from NetFlow...");
+        await fillPromptAndGenerate(config.videoPrompt);
+        await delay(2000);
+
+        // 2.2 Wait for video generation
+        console.log("⏳ Video generation started...");
+        const videoUrl = await waitForVideoComplete(300000);
+
+        if (!videoUrl) {
+            return {
+                success: false,
+                error: "Video generation timeout"
+            };
         }
 
-        console.log("=== STAGE 2 COMPLETE ===");
-        console.log("🎉 Pipeline finished! User can now click Generate for video.");
+        console.log("\n🎉🎉🎉 PIPELINE COMPLETE! 🎉🎉🎉\n");
+        console.log("Video URL:", videoUrl.substring(0, 100));
 
-        return { success: true, generatedImageUrl };
+        return {
+            success: true,
+            videoUrl
+        };
 
     } catch (error: any) {
         console.error("❌ Pipeline error:", error);
         return { success: false, error: error.message || "Unknown error" };
     }
+};
+
+// --- Exports ---
+export {
+    switchToImageTab,
+    uploadSingleImage,
+    fillPromptAndGenerate,
+    waitForVideoComplete,
+    clickByText
 };
