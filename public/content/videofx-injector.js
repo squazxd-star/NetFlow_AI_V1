@@ -130,105 +130,194 @@ async function findGenerateButton() {
     throw new Error("Could not find generate button");
 }
 
+// Helper to check if element is actually visible to user
+function isVisible(el) {
+    if (!el) return false;
+    const style = window.getComputedStyle(el);
+    return style.display !== 'none' &&
+        style.visibility !== 'hidden' &&
+        style.opacity !== '0' &&
+        el.offsetWidth > 0 &&
+        el.offsetHeight > 0 &&
+        el.offsetParent !== null;
+}
+
 // Help bypass splash screens, overlays and marketing banners
 async function bypassSplashScreens() {
     console.log("[VideoFX] Checking for splash screens or overlays...");
 
     // 1. Try to dismiss marketing overlays (e.g. Nano Banana Pro)
+    // We look for anything that looks like a Close button
     const dismissSelectors = [
         'button[aria-label*="Close"]',
         'button[aria-label*="Dismiss"]',
         'button[aria-label*="ปิด"]',
+        'button[aria-label*="x"]',
         '.close-button',
         '.dismiss-button',
-        '[class*="close"]'
+        '[class*="close"]',
+        '[class*="dismiss"]'
     ];
 
-    for (const selector of dismissSelectors) {
+    for (let i = 0; i < 3; i++) { // Try up to 3 times to clear overlays
+        let found = false;
+        for (const selector of dismissSelectors) {
+            const elements = document.querySelectorAll(selector);
+            for (const el of elements) {
+                if (isVisible(el)) {
+                    console.log("[VideoFX] Dismissing visible overlay/banner:", selector);
+                    el.click();
+                    found = true;
+                    await new Promise(r => setTimeout(r, 800));
+                }
+            }
+        }
+        if (!found) break;
+    }
+
+    // 2. Try to click "New Project" button if on landing page
+    // We only do this if we don't see the editor elements yet
+    const isAlreadyInEditor = isVisible(document.querySelector('textarea[placeholder*="Describe"]')) ||
+        isVisible(document.querySelector('textarea[placeholder*="prompt"]'));
+
+    if (isAlreadyInEditor) {
+        console.log("[VideoFX] Already in editor, skipping Landing Page check.");
+        return;
+    }
+
+    console.log("[VideoFX] Searching for New Project button...");
+    const buttons = document.querySelectorAll('button, [role="button"]');
+    for (const btn of buttons) {
+        const text = btn.textContent?.toLowerCase() || '';
+        const aria = btn.getAttribute('aria-label')?.toLowerCase() || '';
+        if (text.includes('new project') || text.includes('โปรเจกต์ใหม่') ||
+            aria.includes('new project') || aria.includes('โปรเจกต์ใหม่') ||
+            text === '+') {
+
+            if (isVisible(btn)) {
+                console.log("[VideoFX] Clicking New Project button:", btn.textContent || aria);
+                btn.click();
+                await new Promise(r => setTimeout(r, 3000)); // Wait for editor to load
+                return;
+            }
+        }
+    }
+}
+
+// Find the prompt textarea (try multiple selectors)
+async function findPromptInput() {
+    console.log("[VideoFX] Searching for prompt input...");
+    const selectors = [
+        'textarea[placeholder*="Describe"]', // Most specific for Veo editor
+        'textarea[placeholder*="describe"]',
+        'textarea[placeholder*="prompt"]',
+        'textarea[placeholder*="Prompt"]',
+        'textarea[placeholder*="video"]',
+        'textarea',
+        '[contenteditable="true"]'
+    ];
+
+    for (const selector of selectors) {
         try {
             const elements = document.querySelectorAll(selector);
             for (const el of elements) {
-                if (el.offsetParent !== null) { // Check if visible
-                    console.log("[VideoFX] Dismissing overlay:", selector);
-                    el.click();
-                    await new Promise(r => setTimeout(r, 500));
+                if (isVisible(el)) {
+                    // Check if it's the BIG textarea, not a small search box
+                    if (el.tagName === 'TEXTAREA' || el.offsetHeight > 40) {
+                        console.log("[VideoFX] Found visible input with selector:", selector);
+                        return el;
+                    }
                 }
             }
         } catch (e) { }
     }
 
-    // 2. Try to click "New Project" button if on landing page
-    const newProjectSelectors = [
-        'button[aria-label*="New project"]',
-        'button[aria-label*="โปรเจกต์ใหม่"]',
-        'button:contains("New project")',
-        'button:contains("โปรเจกต์ใหม่")',
-        '[data-testid*="new-project"]'
+    throw new Error("Could not find prompt input (Ensure you are in the Editor)");
+}
+
+// Find the generate button
+async function findGenerateButton() {
+    console.log("[VideoFX] Searching for generate button...");
+    const selectors = [
+        'button[aria-label*="Generate"]',
+        'button[aria-label*="generate"]',
+        'button[aria-label*="สร้าง"]',
+        '[data-testid*="generate"]',
+        'button[type="submit"]'
     ];
 
-    // Also search by text content for "New project" or "โปรเจกต์ใหม่"
-    const buttons = document.querySelectorAll('button');
-    for (const btn of buttons) {
-        const text = btn.textContent?.toLowerCase() || '';
-        if (text.includes('new project') || text.includes('โปรเจกต์ใหม่')) {
-            if (btn.offsetParent !== null) {
-                console.log("[VideoFX] Clicking New Project button by text:", btn.textContent);
-                btn.click();
-                await new Promise(r => setTimeout(r, 2000)); // Wait for editor to load
-                return;
+    // Priority 1: Semantic button with "Generate" text/label
+    for (const selector of selectors) {
+        const elements = document.querySelectorAll(selector);
+        for (const el of elements) {
+            if (isVisible(el)) {
+                console.log("[VideoFX] Found visible button with selector:", selector);
+                return el;
             }
         }
     }
 
-    for (const selector of newProjectSelectors) {
-        try {
-            const btn = document.querySelector(selector);
-            if (btn && btn.offsetParent !== null) {
-                console.log("[VideoFX] Clicking New Project button:", selector);
-                btn.click();
-                await new Promise(r => setTimeout(r, 2000));
-                return;
+    // Priority 2: Any visible button containing keywords
+    const buttons = document.querySelectorAll('button');
+    for (const btn of buttons) {
+        const text = btn.textContent?.toLowerCase() || '';
+        if (text.includes('generate') || text.includes('create') || text.includes('สร้าง')) {
+            if (isVisible(btn)) {
+                console.log("[VideoFX] Found visible button by text:", btn.textContent);
+                return btn;
             }
-        } catch (e) { }
+        }
     }
+
+    throw new Error("Could not find generate button (Is the prompt too short or invalid?)");
 }
 
 // Watch for video element to appear
 async function waitForVideo() {
     console.log("[VideoFX] Waiting for video to generate...");
 
-    // This could take a while (1-5 minutes)
     const maxWait = 5 * 60 * 1000; // 5 minutes
     const startTime = Date.now();
 
     while (Date.now() - startTime < maxWait) {
         // Look for video element
         const video = document.querySelector('video[src]');
-        if (video && video.src) {
-            console.log("[VideoFX] Video found:", video.src);
+        if (video && video.src && !video.src.startsWith('blob:')) {
+            console.log("[VideoFX] Video found with source URL:", video.src);
             return video.src;
         }
 
-        // Look for download button
+        // Look for download link (often the most reliable way to get URL)
         const downloadBtn = document.querySelector('a[download], button[aria-label*="download"], button[aria-label*="Download"]');
         if (downloadBtn) {
             const href = downloadBtn.href || downloadBtn.getAttribute('data-url');
-            if (href) {
+            if (href && !href.startsWith('blob:')) {
                 console.log("[VideoFX] Download link found:", href);
                 return href;
             }
         }
 
-        // Check for error
-        const errorElement = document.querySelector('[class*="error"], [class*="Error"]');
-        if (errorElement && errorElement.textContent?.length > 0) {
-            throw new Error("VideoFX Error: " + errorElement.textContent);
+        // If only blob is found, try to capture it (though we prefer direct URLs for TikTok)
+        const blobVideo = document.querySelector('video[src^="blob:"]');
+        if (blobVideo && blobVideo.src) {
+            // We'll let it wait a bit more to see if a real URL appears, 
+            // but if we hit 4 mins, we take the blob.
+            if (Date.now() - startTime > 4 * 60 * 1000) {
+                console.log("[VideoFX] Taking blob source as last resort:", blobVideo.src);
+                return blobVideo.src;
+            }
         }
 
-        await new Promise(r => setTimeout(r, 3000)); // Check every 3 seconds
+        // Check for error messages on page
+        const errorElement = document.querySelector('[class*="error"], [class*="Error"]');
+        if (errorElement && isVisible(errorElement) && errorElement.textContent?.length > 10) {
+            throw new Error("VideoFX Cloud Error: " + errorElement.textContent);
+        }
+
+        await new Promise(r => setTimeout(r, 4000));
     }
 
-    throw new Error("Video generation timed out");
+    throw new Error("Video generation timed out (Check your Google account/credits)");
 }
 
 // Main automation flow
@@ -236,7 +325,7 @@ async function runAutomation(prompt) {
     try {
         console.log("[VideoFX] Starting automation with prompt:", prompt);
 
-        // Step 0: Bypass splash screens and enter editor
+        // Step 0: Ensure we are in the editor and clear of overlays
         await bypassSplashScreens();
 
         // Step 1: Find and fill prompt
@@ -244,7 +333,7 @@ async function runAutomation(prompt) {
         typeText(input, prompt);
         console.log("[VideoFX] Prompt entered");
 
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 1500));
 
         // Step 2: Click generate
         const generateBtn = await findGenerateButton();
@@ -253,7 +342,7 @@ async function runAutomation(prompt) {
 
         // Step 3: Wait for video
         const videoUrl = await waitForVideo();
-        console.log("[VideoFX] Video URL obtained:", videoUrl);
+        console.log("[VideoFX] Video success!");
 
         // Step 4: Notify service worker
         chrome.runtime.sendMessage({
