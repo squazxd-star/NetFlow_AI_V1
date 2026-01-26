@@ -130,121 +130,103 @@ async function findGenerateButton() {
     throw new Error("Could not find generate button");
 }
 
-// Helper to check if element is actually visible to user
+// Enhanced visibility check that considers more edge cases
 function isVisible(el) {
     if (!el) return false;
     const style = window.getComputedStyle(el);
-    return style.display !== 'none' &&
-        style.visibility !== 'hidden' &&
-        style.opacity !== '0' &&
-        el.offsetWidth > 0 &&
-        el.offsetHeight > 0 &&
-        el.offsetParent !== null;
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
 }
 
-// Help bypass splash screens, overlays and marketing banners
-async function bypassSplashScreens() {
-    console.log("[VideoFX] Checking for splash screens or overlays...");
+// Highlight element for debugging
+function debugHighlight(el, color = 'red') {
+    if (!el) return;
+    el.style.border = `3px solid ${color}`;
+    el.style.boxShadow = `0 0 10px ${color}`;
+}
 
-    // 1. Try to dismiss marketing overlays (e.g. Nano Banana Pro)
-    const dismissSelectors = [
-        'button[aria-label*="Close"]',
-        'button[aria-label*="Dismiss"]',
-        'button[aria-label*="ปิด"]',
-        'button[aria-label*="x"]',
-        '[class*="close"]',
-        '[class*="dismiss"]',
-        '[aria-label*="close"]'
+// Aggressive bypass using XPath and text search
+async function bypassSplashScreens() {
+    console.log("[VideoFX] CRITICAL: Starting aggressive bypass...");
+
+    // 1. Force remove large overlays/dialogs that might be blocking the view
+    const potentialOverlays = document.querySelectorAll('div[role="dialog"], [class*="overlay"], [class*="Splash"]');
+    for (const overlay of potentialOverlays) {
+        if (isVisible(overlay) && overlay.innerText.includes('Banana')) {
+            console.log("[VideoFX] Forcibly removing blocking overlay card");
+            overlay.style.display = 'none';
+        }
+    }
+
+    // 2. Search for anything that says "New project" or "โปรเจกต์ใหม่" using XPath
+    const xpathQueries = [
+        "//*[contains(text(), 'New project')]",
+        "//*[contains(text(), 'โปรเจกต์ใหม่')]",
+        "//*[contains(@aria-label, 'New project')]",
+        "//*[contains(@aria-label, 'โปรเจกต์ใหม่')]",
+        "//button[contains(., '+')]"
     ];
 
-    for (let i = 0; i < 3; i++) {
-        let found = false;
-        for (const selector of dismissSelectors) {
-            const elements = document.querySelectorAll(selector);
-            for (const el of elements) {
-                if (isVisible(el)) {
-                    console.log("[VideoFX] Dismissing overlay:", selector);
-                    el.click();
-                    found = true;
-                    await new Promise(r => setTimeout(r, 1000));
-                }
-            }
-        }
-        if (!found) break;
-    }
-
-    // 2. Try to find the "New Project" trigger
-    // It might be a button, a div, or a card. We search broadly for the text.
-    console.log("[VideoFX] Searching for New Project trigger...");
-
-    const keywords = ['new project', 'โปรเจกต์ใหม่', 'create project'];
-    const allElements = document.querySelectorAll('button, div, span, [role="button"]');
-
-    for (const el of allElements) {
-        // Only check elements with small amount of children to target the actual button/label
-        if (el.children.length > 5) continue;
-
-        const text = el.textContent?.toLowerCase() || '';
-        const aria = el.getAttribute('aria-label')?.toLowerCase() || '';
-
-        if (keywords.some(k => text.includes(k) || aria.includes(k))) {
+    for (const query of xpathQueries) {
+        const result = document.evaluate(query, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+        for (let i = 0; i < result.snapshotLength; i++) {
+            const el = result.snapshotItem(i);
             if (isVisible(el)) {
-                console.log("[VideoFX] Found New Project trigger:", text || aria);
+                console.log("[VideoFX] Found navigation target via XPath:", query);
+                debugHighlight(el, 'green');
                 el.click();
-                await new Promise(r => setTimeout(r, 3000)); // Wait for transition
-                return;
+                await new Promise(r => setTimeout(r, 2500));
+                // After clicking, check if we arrived in editor
+                if (document.querySelector('textarea')) return;
             }
-        }
-    }
-
-    // Fallback: search for any element that has a "+" and some relevant text nearby
-    const plusElements = Array.from(document.querySelectorAll('*')).filter(el => el.textContent?.trim() === '+');
-    for (const plus of plusElements) {
-        if (isVisible(plus)) {
-            console.log("[VideoFX] Found '+' element, clicking it as fallback...");
-            plus.click();
-            await new Promise(r => setTimeout(r, 3000));
-            return;
         }
     }
 }
 
-// Find the prompt textarea (try multiple selectors)
+// Find the prompt textarea with high-level retry and multiple strategies
 async function findPromptInput() {
-    console.log("[VideoFX] Searching for prompt input...");
+    console.log("[VideoFX] Searching for target input area...");
 
-    // We retry a few times because the page might still be loading after "New Project" click
-    for (let retry = 0; retry < 5; retry++) {
+    for (let attempt = 0; attempt < 10; attempt++) {
+        // Strategy A: Direct selectors
         const selectors = [
             'textarea[placeholder*="Describe"]',
             'textarea[placeholder*="describe"]',
-            'textarea[placeholder*="prompt"]',
             'textarea[placeholder*="Prompt"]',
-            'textarea[placeholder*="video"]',
             'textarea',
             '[contenteditable="true"]'
         ];
 
-        for (const selector of selectors) {
-            try {
-                const elements = document.querySelectorAll(selector);
-                for (const el of elements) {
-                    if (isVisible(el)) {
-                        // Ensure it's not a tiny input or a hidden one
-                        if (el.offsetHeight > 30) {
-                            console.log("[VideoFX] Found visible input with selector:", selector);
-                            return el;
-                        }
-                    }
-                }
-            } catch (e) { }
+        for (const sel of selectors) {
+            const el = document.querySelector(sel);
+            if (isVisible(el) && el.offsetHeight > 50) {
+                console.log("[VideoFX] Found input via Selector:", sel);
+                debugHighlight(el, 'blue');
+                return el;
+            }
         }
 
-        console.log(`[VideoFX] Input not found, retry ${retry + 1}/5...`);
-        await new Promise(r => setTimeout(r, 2000));
+        // Strategy B: XPath search for placeholder text
+        const xpathQuery = "//*[contains(@placeholder, 'Describe') or contains(@placeholder, 'video')]";
+        const res = document.evaluate(xpathQuery, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        if (res.singleNodeValue && isVisible(res.singleNodeValue)) {
+            console.log("[VideoFX] Found input via XPath Strategy");
+            debugHighlight(res.singleNodeValue, 'blue');
+            return res.singleNodeValue;
+        }
+
+        // Strategy C: If we still can't find it, maybe we need to click "New Project" again?
+        if (attempt === 3 || attempt === 7) {
+            console.log("[VideoFX] Still not in editor, retrying landing page bypass...");
+            await bypassSplashScreens();
+        }
+
+        await new Promise(r => setTimeout(r, 1500));
     }
 
-    throw new Error("Could not find prompt input (Ensure you are in the Editor)");
+    throw new Error("Unable to enter Editor mode. Please manually click '+ New Project' and I will take over.");
 }
 
 // Find the generate button
