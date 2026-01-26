@@ -1,45 +1,87 @@
 
+// Helper for random selection
+const sample = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
+// --- 1. DIVERSE STYLES & ATMOSPHERES (To make prompts multi-dimensional) ---
+const lightingStyles = [
+    "Soft studio lighting, rim light, high key",
+    "Golden hour sunlight, warm tones, cinematic glow",
+    "Neon city lights, cyberpunk atmosphere, cool blue and red highlights",
+    "Natural window light, airy and fresh, minimal shadows",
+    "Dramatic chiaroscuro, high contrast, moody luxury"
+];
+
+const cameraMovements = [
+    "Slow smooth dolly in",
+    "Handheld orbital movement, dynamic feel",
+    "Static shot with focus pull",
+    "Low angle tracking shot",
+    "Gentle pan revealing details"
+];
+
+const qualityBoosters = "8k resolution, hyperrealistic, highly detailed texture, professional cinematography, award-winning photography, sharp focus";
+
+// --- 2. IDENTITY LOCK COMMANDS (To fix facial distortion) ---
+const identityLockInstruction = `
+*** GROUND TRUTH IDENTITY - CRITICAL ***
+- The AI MUST use the uploaded reference image as the absolute source for the character's face.
+- DO NOT hallucinate a new face.
+- MATCH THE FACE in the uploaded image EXACTLY.
+- Maintain: Eye shape, nose structure, mouth, and skin texture from the reference.
+- If the reference is a collage, look at the PERSON on the LEFT.
+`;
+
 export interface PromptVariables {
     productName: string;
-    genderText: string; // "Thai woman" or "Thai man"
+    genderText: string;
     sceneDescription?: string;
     movement?: string;
     emotion?: string;
+    // New: Optional advanced controls
+    style?: string;
 }
 
 export const basePromptTemplate = `
-[Scene description]: {{sceneDescription}}
-[Movement]: {{movement}}
-[Thai dialogue]: Presenting {{productName}} with a {{emotion}} expression.
+[Concept]: {{sceneDescription}}
+[Action]: {{movement}}
+[Atmosphere]: {{lighting}}
+[Subject]: {{genderText}} interacting with {{productName}}.
 [Emotion]: {{emotion}}
 
-*** VISUAL REFERENCE GUIDE ***
-- The uploaded reference image contains TWO main elements side-by-side:
-  1. LEFT SIDE: The Character reference ({{genderText}}).
-  2. RIGHT SIDE: The Product reference ({{productName}}).
-- Please generate a video where this character is interacting with this product.
+*** VISUAL INPUT INSTRUCTION ***
+- An image has been uploaded to the input. USE IT.
+- The video must be based on this visual input.
 
-*** STRICT REQUIREMENTS ***
-- The person in the video MUST use the appearance of the person on the LEFT of the reference image.
-- The product in the video MUST look like the object on the RIGHT of the reference image.
+{{identityLock}}
+
+*** AESTHETIC GUIDELINES ***
+- Style: {{qualityBoosters}}
 - Nationality: Thai people only.
-- AGE: Adult only. DO NOT include babies, infants, or children.
-- No text overlays unless specified in dialogue.
+- Age: Adult only. NO children.
+- Text: None.
 `;
 
-export const substituteVariables = (template: string, variables: PromptVariables): string => {
-    let result = template;
+export const getFormattedPrompt = (variables: PromptVariables): string => {
+    // 1. Fill empty fields with High-Quality Random Defaults if not provided
+    const lighting = variables.style || sample(lightingStyles);
+    const move = variables.movement || sample(cameraMovements);
 
-    // Replace standard variables
+    // 2. Variable Substitution
+    let result = basePromptTemplate;
+
+    // Standard Vars
     result = result.replace(/{{productName}}/g, variables.productName);
     result = result.replace(/{{genderText}}/g, variables.genderText);
-    result = result.replace(/{{sceneDescription}}/g, variables.sceneDescription || "Product showcase");
-    result = result.replace(/{{movement}}/g, variables.movement || "Smooth cinematic pan");
-    result = result.replace(/{{emotion}}/g, variables.emotion || "Happy and confident");
+    result = result.replace(/{{sceneDescription}}/g, variables.sceneDescription || `Reviewing ${variables.productName} with genuine interest`);
+    result = result.replace(/{{emotion}}/g, variables.emotion || "Engaging and confident");
 
-    return result;
-};
+    // Dynamic Creative Vars
+    result = result.replace(/{{movement}}/g, move);
+    result = result.replace(/{{lighting}}/g, lighting);
+    result = result.replace(/{{qualityBoosters}}/g, qualityBoosters);
 
-export const getFormattedPrompt = (variables: PromptVariables): string => {
-    return substituteVariables(basePromptTemplate, variables);
+    // Strict Rules
+    result = result.replace(/{{identityLock}}/g, identityLockInstruction);
+
+    return result.trim();
 };

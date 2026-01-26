@@ -54,49 +54,55 @@ const ContentScriptApp = () => {
     const handleAutomation = async (data: any) => {
         const { productName, gender, emotion, imageBase64, personImageBase64 } = data;
 
-        // 1. Generate Prompt
-        const promptVars = {
-            productName: productName || "Generic Product",
-            genderText: gender === 'male' ? "Thai man" : "Thai woman",
-            emotion: emotion || "Happy",
-            sceneDescription: data.sceneDescription, // Optional
-            movement: data.movement // Optional
-        };
+        console.log("🚀 Starting Automation Sequence...");
 
-        const finalPrompt = getFormattedPrompt(promptVars);
-        console.log("Generated Prompt:", finalPrompt);
-
-        // 2. Fill Prompt into the textarea (assuming a generic textarea for now)
-        // You might need to inspect the target site for the exact selector
-        fillPrompt(finalPrompt, 'textarea[placeholder*="Describe"]');
-
-        // 3. Image Handling Logic (Dual Image Strategy)
-        let finalImageToUpload = imageBase64; // Default to product only
+        // 1. Prepare Image (Merge if needed)
+        // We do this FIRST so the image is ready effectively 'before' the prompt logic interacts with the page UI
+        let finalImageToUpload = imageBase64;
 
         if (imageBase64 && personImageBase64) {
-            console.log("Both person and product images detected. Merging...");
+            console.log("🖼️ Merging Person + Product images...");
             try {
-                // Import dynamically to avoid loading canvas logic if not needed, 
-                // but since it's a utility, static import is also fine if we moved it to top.
-                // We'll trust the bundler or just do dynamic import here for safety.
                 const { mergeImages } = await import('./utils/imageProcessing');
+                // Ensure Person is on LEFT (as per prompt instructions)
                 finalImageToUpload = await mergeImages(personImageBase64, imageBase64, 'horizontal');
-                console.log("Images merged successfully.");
             } catch (err) {
-                console.error("Failed to merge images, falling back to product only:", err);
+                console.error("❌ Merge failed:", err);
             }
         } else if (personImageBase64 && !imageBase64) {
             finalImageToUpload = personImageBase64;
         }
 
-        // 4. Upload the final image (Merged or Single)
+        // 2. Upload Image to Veo (PRIORITY ACTION)
         if (finalImageToUpload) {
-            // Assuming the input is the standard file input
-            uploadImageToWeb(finalImageToUpload, 'input[type="file"]');
+            console.log("⬆️ Uploading Image to Input...");
+            const success = uploadImageToWeb(finalImageToUpload, 'input[type="file"]');
+            if (success) {
+                console.log("✅ Image Upload Triggered");
+                // Add a small delay to let Veo process the image thumbnail
+                await new Promise(r => setTimeout(r, 1000));
+            } else {
+                console.warn("⚠️ Image Upload Failed (Input not found?)");
+            }
         }
 
-        // 5. Click Generate (Selector needs to be verified on actual site)
-        // clickButton('button:contains("Generate")'); 
+        // 3. Generate & Fill Prompt
+        // Now that image is set, we fill the text.
+        const promptVars = {
+            productName: productName || "Generic Product",
+            genderText: gender === 'male' ? "Thai man" : "Thai woman",
+            emotion: emotion || "Happy",
+            sceneDescription: data.sceneDescription,
+            movement: data.movement,
+            style: data.style // Pass style from UI if available
+        };
+
+        const finalPrompt = getFormattedPrompt(promptVars);
+        console.log("📝 Generated Prompt:", finalPrompt);
+
+        fillPrompt(finalPrompt, 'textarea[placeholder*="Describe"]');
+
+        console.log("✨ Automation Sequence Complete. Ready for User to clicking Generate.");
     };
 
     if (!videoUrl) return null;
