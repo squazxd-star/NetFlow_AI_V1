@@ -1,99 +1,33 @@
 import { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-    FileText, Sparkles, ShoppingBag, Settings,
-    ChevronDown, Globe, Mic, Play, User, Image, Plus
+    Wand2, User, ShoppingBag, Video, Settings,
+    Sparkles, Image, Loader2, Download, Play
 } from "lucide-react";
 import { createVideoSchema, CreateVideoFormData, createVideoDefaultValues } from "@/schemas";
 import { useVideoGeneration } from "@/hooks/useVideoGeneration";
-import { Loader2 } from "lucide-react";
-
-// Template options
-const TEMPLATE_OPTIONS = [
-    { value: "product-review", label: "รีวิวสินค้า", emoji: "📦" },
-    { value: "unboxing", label: "แกะกล่อง", emoji: "📬" },
-    { value: "comparison", label: "เปรียบเทียบ", emoji: "⚖️" },
-    { value: "testimonial", label: "รีวิวลูกค้า", emoji: "💬" },
-    { value: "flash-sale", label: "Flash Sale", emoji: "⚡" },
-    { value: "tutorial", label: "สอนใช้งาน", emoji: "📚" },
-    { value: "lifestyle", label: "ไลฟ์สไตล์", emoji: "✨" },
-    { value: "before-after", label: "ก่อน-หลัง", emoji: "🔄" },
-];
-
-const SALE_STYLE_OPTIONS = [
-    { value: "hard", label: "ขายแรง", desc: "กระตุ้นซื้อทันที" },
-    { value: "soft", label: "ขายนุ่ม", desc: "ไม่กดดัน" },
-    { value: "educational", label: "ให้ความรู้", desc: "สอนก่อนขาย" },
-    { value: "storytelling", label: "เล่าเรื่อง", desc: "สร้างอารมณ์" },
-];
-
-const VOICE_TONE_OPTIONS = [
-    { value: "energetic", label: "ตื่นเต้น 🔥" },
-    { value: "calm", label: "สงบ 😌" },
-    { value: "friendly", label: "เป็นกันเอง 😊" },
-    { value: "professional", label: "มืออาชีพ 💼" },
-];
-
-const LANGUAGE_OPTIONS = [
-    { value: "th", label: "ไทยกลาง" },
-    { value: "th-north", label: "ภาษาเหนือ" },
-    { value: "th-south", label: "ภาษาใต้" },
-    { value: "th-isan", label: "ภาษาอีสาน" },
-];
-
-// Section Header Component
-const SectionHeader = ({
-    icon: Icon,
-    title,
-    isOpen,
-    onToggle,
-}: {
-    icon: React.ElementType;
-    title: string;
-    isOpen: boolean;
-    onToggle: () => void;
-}) => (
-    <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between py-2"
-        type="button"
-    >
-        <div className="flex items-center gap-2">
-            <Icon className="w-4 h-4 text-neon-red" />
-            <span className="text-sm font-semibold text-foreground">{title}</span>
-        </div>
-        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-    </button>
-);
 
 const CreateVideoTab = () => {
-    // React Hook Form
     const form = useForm<CreateVideoFormData>({
         resolver: zodResolver(createVideoSchema),
         defaultValues: createVideoDefaultValues,
     });
 
-    const { generate, isLoading, result, downloadVideo } = useVideoGeneration();
+    const { generate, isLoading, result, downloadVideo, rpaStatus, isExtension } = useVideoGeneration();
     const hasVideo = !!result?.data?.videoUrl;
 
-    const { register, control, watch, setValue } = form;
+    const { register, watch, setValue, handleSubmit, formState: { errors } } = form;
 
-    // Watch values
-    const template = watch("template");
-    const saleStyle = watch("saleStyle");
+    // Watch key values
+    const useAiScript = watch("useAiScript");
     const gender = watch("gender");
     const aspectRatio = watch("aspectRatio");
-    const hookEnabled = watch("hookEnabled");
-    const ctaEnabled = watch("ctaEnabled");
+    const template = watch("template");
 
-    // UI State
+    // Character image state
     const [characterImage, setCharacterImage] = useState<string | null>(null);
-    const [scriptOpen, setScriptOpen] = useState(true);
-    const [productOpen, setProductOpen] = useState(true);
-    const [settingsOpen, setSettingsOpen] = useState(true);
 
-    // Handle image upload
     const handleImageUpload = () => {
         const input = document.createElement("input");
         input.type = "file";
@@ -111,355 +45,404 @@ const CreateVideoTab = () => {
         input.click();
     };
 
-    // Form submission
     const onSubmit = async (data: CreateVideoFormData) => {
-        console.log("📋 Form submitted with data:", data);
+        console.log("🎬 Full Form Data:", data);
 
         await generate({
             ...data,
             userImage: characterImage || undefined,
+            loopCount: data.clipCount,
+            concatenate: data.smartLoop
         });
     };
 
+    const templateLabels: Record<string, string> = {
+        "product-review": "รีวิวสินค้า",
+        "brainrot-product": "Brainrot + ขายของ",
+        "unboxing": "แกะกล่อง",
+        "comparison": "เปรียบเทียบ",
+        "testimonial": "รีวิวจากลูกค้า",
+        "flash-sale": "Flash Sale",
+        "tutorial": "สอนใช้งาน",
+        "lifestyle": "ไลฟ์สไตล์",
+        "trending": "ตามเทรนด์",
+        "mini-drama": "มินิดราม่า",
+        "before-after": "ก่อน-หลัง"
+    };
+
     return (
-        <form onSubmit={form.handleSubmit(onSubmit)} className="p-4 space-y-3">
-            {/* === Product Data Section === */}
-            <section className="glass-card overflow-hidden">
-                <div className="px-4 pt-3">
-                    <SectionHeader
-                        icon={ShoppingBag}
-                        title="ข้อมูลสินค้า"
-                        isOpen={productOpen}
-                        onToggle={() => setProductOpen(!productOpen)}
+        <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
+            {/* Section 1: Product Info */}
+            <section className="glass-card p-4 space-y-3">
+                <div className="flex items-center gap-2 text-neon-red mb-2">
+                    <ShoppingBag className="w-4 h-4" />
+                    <span className="text-sm font-semibold">ข้อมูลสินค้า</span>
+                </div>
+
+                <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">ชื่อสินค้า *</label>
+                    <input
+                        {...register("productName")}
+                        placeholder="เช่น ครีมหน้าใส Premium"
+                        className="w-full neon-input"
+                    />
+                    {errors.productName && (
+                        <p className="text-xs text-red-500 mt-1">{errors.productName.message}</p>
+                    )}
+                </div>
+
+                <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">รายละเอียดสินค้า</label>
+                    <textarea
+                        {...register("productDescription")}
+                        placeholder="จุดเด่น คุณสมบัติ ราคา โปรโมชั่น..."
+                        rows={2}
+                        className="w-full neon-textarea"
                     />
                 </div>
 
-                {productOpen && (
-                    <div className="px-4 pb-4 space-y-4">
-                        {/* Product Name */}
-                        <div>
-                            <label className="text-xs text-muted-foreground mb-1.5 block">
-                                ชื่อสินค้า *
-                            </label>
-                            <input
-                                type="text"
-                                {...register("productName")}
-                                placeholder="เช่น เซรั่มหน้าใส, รองเท้าวิ่ง..."
-                                className="w-full neon-input"
-                            />
-                        </div>
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">รหัสสินค้า (TikTok)</label>
+                        <input
+                            {...register("productId")}
+                            placeholder="1729384..."
+                            className="w-full neon-input"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">คำสำคัญ</label>
+                        <input
+                            {...register("mustUseKeywords")}
+                            placeholder="คั่นด้วย ,"
+                            className="w-full neon-input"
+                        />
+                    </div>
+                </div>
+            </section>
 
-                        {/* Product ID (Optional) */}
-                        <div>
-                            <label className="text-xs text-muted-foreground mb-1.5 block">
-                                รหัสสินค้า TikTok (ถ้ามี)
-                            </label>
-                            <input
-                                type="text"
-                                {...register("productId")}
-                                placeholder="สำหรับ Pin Cart อัตโนมัติ"
-                                className="w-full neon-input"
-                            />
-                        </div>
+            {/* Section 2: AI Script Settings */}
+            <section className="glass-card p-4 space-y-3">
+                <div className="flex items-center gap-2 text-neon-red mb-2">
+                    <Sparkles className="w-4 h-4" />
+                    <span className="text-sm font-semibold">สคริปต์ AI</span>
+                </div>
 
-                        {/* Character Image */}
-                        <div>
-                            <label className="text-xs text-muted-foreground mb-1.5 block flex items-center gap-1">
-                                <Image className="w-3 h-3" />
-                                รูปตัวละคร/นักแสดง (ถ้ามี)
-                            </label>
-                            <button
-                                type="button"
-                                onClick={handleImageUpload}
-                                className="w-full aspect-video rounded-xl border-2 border-dashed border-border bg-muted/30 flex flex-col items-center justify-center gap-2 hover:border-neon-red/50 hover:bg-neon-red/5 transition-all overflow-hidden"
-                            >
-                                {characterImage ? (
-                                    <img src={characterImage} alt="Character" className="w-full h-full object-cover" />
-                                ) : (
-                                    <>
-                                        <Plus className="w-6 h-6 text-muted-foreground" />
-                                        <span className="text-xs text-muted-foreground">อัปโหลดรูป</span>
-                                    </>
-                                )}
-                            </button>
-                        </div>
+                {/* AI Mode Toggle */}
+                <div className="flex gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setValue("useAiScript", true)}
+                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${useAiScript ? 'bg-neon-red text-white' : 'bg-muted text-muted-foreground border border-border'}`}
+                    >
+                        🤖 AI สร้างอัตโนมัติ
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setValue("useAiScript", false)}
+                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${!useAiScript ? 'bg-neon-red text-white' : 'bg-muted text-muted-foreground border border-border'}`}
+                    >
+                        ✏️ เขียนเอง
+                    </button>
+                </div>
+
+                {/* Template Selection */}
+                <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">เทมเพลตสคริปต์</label>
+                    <select {...register("template")} className="w-full neon-select">
+                        {Object.entries(templateLabels).map(([value, label]) => (
+                            <option key={value} value={value}>{label}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Voice Settings */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">น้ำเสียง</label>
+                        <select {...register("voiceTone")} className="w-full neon-select">
+                            <option value="energetic">กระตือรือร้น</option>
+                            <option value="calm">สงบ</option>
+                            <option value="friendly">เป็นกันเอง</option>
+                            <option value="professional">มืออาชีพ</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">ระดับพลังงาน</label>
+                        <select {...register("saleStyle")} className="w-full neon-select">
+                            <option value="hard">สูงมาก</option>
+                            <option value="soft">สูง</option>
+                            <option value="educational">ปานกลาง</option>
+                            <option value="storytelling">เล่าเรื่อง</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Language */}
+                <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">ภาษา</label>
+                    <select {...register("language")} className="w-full neon-select">
+                        <option value="th-central">ไทยกลาง</option>
+                        <option value="th-north">ไทยเหนือ</option>
+                        <option value="th-south">ไทยใต้</option>
+                        <option value="th-isan">ไทยอีสาน</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+
+                {/* Hook & CTA */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">ประโยคเปิด (Hook)</label>
+                        <input
+                            {...register("hookText")}
+                            placeholder="หยุดดูก่อน!"
+                            className="w-full neon-input"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">ปุ่มกระตุ้น (CTA)</label>
+                        <input
+                            {...register("ctaText")}
+                            placeholder="กดตะกร้าเลย!"
+                            className="w-full neon-input"
+                        />
+                    </div>
+                </div>
+
+                {/* Custom Prompt */}
+                {!useAiScript && (
+                    <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">สคริปต์ของคุณ</label>
+                        <textarea
+                            {...register("aiPrompt")}
+                            placeholder="เขียนสคริปต์เองที่นี่..."
+                            rows={4}
+                            className="w-full neon-textarea"
+                        />
                     </div>
                 )}
             </section>
 
-            {/* === Script Settings Section === */}
-            <section className="glass-card overflow-hidden">
-                <div className="px-4 pt-3">
-                    <SectionHeader
-                        icon={FileText}
-                        title="ตั้งค่าสคริปต์"
-                        isOpen={scriptOpen}
-                        onToggle={() => setScriptOpen(!scriptOpen)}
-                    />
+            {/* Section 3: Character & Style */}
+            <section className="glass-card p-4 space-y-3">
+                <div className="flex items-center gap-2 text-neon-red mb-2">
+                    <User className="w-4 h-4" />
+                    <span className="text-sm font-semibold">ตัวละคร & สไตล์</span>
                 </div>
 
-                {scriptOpen && (
-                    <div className="px-4 pb-4 space-y-4">
-                        {/* Template Selection */}
-                        <div>
-                            <label className="text-xs text-muted-foreground mb-2 block">
-                                รูปแบบวิดีโอ
-                            </label>
-                            <div className="grid grid-cols-4 gap-2">
-                                {TEMPLATE_OPTIONS.map((opt) => (
-                                    <button
-                                        key={opt.value}
-                                        type="button"
-                                        onClick={() => setValue("template", opt.value as any)}
-                                        className={`py-2 px-2 rounded-lg text-xs font-medium transition-all flex flex-col items-center gap-1 ${template === opt.value
-                                                ? 'bg-neon-red text-white'
-                                                : 'bg-muted text-muted-foreground border border-border hover:border-neon-red/50'
-                                            }`}
-                                    >
-                                        <span className="text-lg">{opt.emoji}</span>
-                                        <span className="text-[10px]">{opt.label}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Sale Style */}
-                        <div>
-                            <label className="text-xs text-muted-foreground mb-2 block">
-                                <Sparkles className="w-3 h-3 inline mr-1" />
-                                สไตล์การขาย
-                            </label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {SALE_STYLE_OPTIONS.map((opt) => (
-                                    <button
-                                        key={opt.value}
-                                        type="button"
-                                        onClick={() => setValue("saleStyle", opt.value as any)}
-                                        className={`py-2.5 px-3 rounded-lg text-xs font-medium transition-all text-left ${saleStyle === opt.value
-                                                ? 'bg-neon-red text-white'
-                                                : 'bg-muted text-muted-foreground border border-border'
-                                            }`}
-                                    >
-                                        {opt.label}
-                                        <span className="block text-[10px] opacity-70">{opt.desc}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Voice Tone & Language */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="text-xs text-muted-foreground mb-1.5 block">
-                                    <Mic className="w-3 h-3 inline mr-1" />
-                                    น้ำเสียง
-                                </label>
-                                <select {...register("voiceTone")} className="w-full neon-select">
-                                    {VOICE_TONE_OPTIONS.map((opt) => (
-                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="text-xs text-muted-foreground mb-1.5 block">
-                                    <Globe className="w-3 h-3 inline mr-1" />
-                                    ภาษา
-                                </label>
-                                <select {...register("language")} className="w-full neon-select">
-                                    {LANGUAGE_OPTIONS.map((opt) => (
-                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* Gender */}
-                        <div>
-                            <label className="text-xs text-muted-foreground mb-2 block">
-                                <User className="w-3 h-3 inline mr-1" />
-                                เพศผู้พูด
-                            </label>
-                            <div className="flex gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setValue("gender", "male")}
-                                    className={`flex-1 py-2.5 rounded-full text-xs font-medium transition-all ${gender === "male"
-                                            ? 'bg-blue-500 text-white'
-                                            : 'bg-muted text-muted-foreground border border-border'
-                                        }`}
-                                >
-                                    ♂ ชาย
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setValue("gender", "female")}
-                                    className={`flex-1 py-2.5 rounded-full text-xs font-medium transition-all ${gender === "female"
-                                            ? 'bg-pink-500 text-white'
-                                            : 'bg-muted text-muted-foreground border border-border'
-                                        }`}
-                                >
-                                    ♀ หญิง
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Hook & CTA */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <div className="flex items-center gap-2 mb-1.5">
-                                    <Controller
-                                        name="hookEnabled"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <input
-                                                type="checkbox"
-                                                checked={field.value}
-                                                onChange={(e) => field.onChange(e.target.checked)}
-                                                className="w-3 h-3 rounded accent-neon-red"
-                                            />
-                                        )}
-                                    />
-                                    <label className="text-xs text-muted-foreground">
-                                        ประโยคเปิด (Hook)
-                                    </label>
-                                </div>
-                                <input
-                                    type="text"
-                                    {...register("hookText")}
-                                    placeholder="เช่น หยุดดูก่อน..."
-                                    disabled={!hookEnabled}
-                                    className={`w-full neon-input text-xs ${!hookEnabled ? 'opacity-50' : ''}`}
-                                />
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-2 mb-1.5">
-                                    <Controller
-                                        name="ctaEnabled"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <input
-                                                type="checkbox"
-                                                checked={field.value}
-                                                onChange={(e) => field.onChange(e.target.checked)}
-                                                className="w-3 h-3 rounded accent-neon-red"
-                                            />
-                                        )}
-                                    />
-                                    <label className="text-xs text-muted-foreground">
-                                        CTA (ปิดท้าย)
-                                    </label>
-                                </div>
-                                <input
-                                    type="text"
-                                    {...register("ctaText")}
-                                    placeholder="เช่น กดตะกร้าเลย..."
-                                    disabled={!ctaEnabled}
-                                    className={`w-full neon-input text-xs ${!ctaEnabled ? 'opacity-50' : ''}`}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Additional Prompt */}
-                        <div>
-                            <label className="text-xs text-muted-foreground mb-1.5 block">
-                                คำสั่งเพิ่มเติม (Optional)
-                            </label>
-                            <textarea
-                                {...register("aiPrompt")}
-                                placeholder="เช่น เน้นเรื่องราคาถูก, อย่าพูดถึงคู่แข่ง..."
-                                rows={2}
-                                className="w-full neon-textarea"
-                            />
-                        </div>
-                    </div>
-                )}
-            </section>
-
-            {/* === Video Settings Section === */}
-            <section className="glass-card overflow-hidden">
-                <div className="px-4 pt-3">
-                    <SectionHeader
-                        icon={Settings}
-                        title="ตั้งค่าวิดีโอ"
-                        isOpen={settingsOpen}
-                        onToggle={() => setSettingsOpen(!settingsOpen)}
-                    />
+                {/* Gender */}
+                <div className="flex gap-2">
+                    {[
+                        { value: "female", label: "♀ หญิง" },
+                        { value: "male", label: "♂ ชาย" },
+                        { value: "any", label: "🎭 ไม่ระบุ" }
+                    ].map((g) => (
+                        <button
+                            key={g.value}
+                            type="button"
+                            onClick={() => setValue("gender", g.value as any)}
+                            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${gender === g.value ? 'bg-neon-red text-white' : 'bg-muted text-muted-foreground border border-border'}`}
+                        >
+                            {g.label}
+                        </button>
+                    ))}
                 </div>
 
-                {settingsOpen && (
-                    <div className="px-4 pb-4 space-y-4">
-                        {/* Aspect Ratio */}
-                        <div>
-                            <label className="text-xs text-muted-foreground mb-2 block">
-                                สัดส่วนวิดีโอ
-                            </label>
-                            <div className="flex gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setValue("aspectRatio", "9:16")}
-                                    className={`flex-1 py-3 px-4 rounded-xl flex flex-col items-center gap-2 transition-all ${aspectRatio === "9:16"
-                                            ? 'bg-neon-red text-white'
-                                            : 'bg-muted border border-border text-muted-foreground'
-                                        }`}
-                                >
-                                    <div className="w-4 h-7 border-2 border-current rounded-sm"></div>
-                                    <span className="text-[10px]">9:16 (TikTok)</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setValue("aspectRatio", "16:9")}
-                                    className={`flex-1 py-3 px-4 rounded-xl flex flex-col items-center gap-2 transition-all ${aspectRatio === "16:9"
-                                            ? 'bg-neon-red text-white'
-                                            : 'bg-muted border border-border text-muted-foreground'
-                                        }`}
-                                >
-                                    <div className="w-7 h-4 border-2 border-current rounded-sm"></div>
-                                    <span className="text-[10px]">16:9 (YouTube)</span>
-                                </button>
-                            </div>
-                        </div>
+                {/* Character Image Upload */}
+                <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">รูปตัวละคร (ถ้ามี)</label>
+                    <button
+                        type="button"
+                        onClick={handleImageUpload}
+                        className="w-full aspect-video rounded-xl border-2 border-dashed border-border bg-muted/30 flex flex-col items-center justify-center gap-2 hover:border-neon-red/50 transition-all overflow-hidden"
+                    >
+                        {characterImage ? (
+                            <img src={characterImage} alt="Character" className="w-full h-full object-cover" />
+                        ) : (
+                            <>
+                                <Image className="w-8 h-8 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">คลิกเพื่ออัปโหลด</span>
+                            </>
+                        )}
+                    </button>
+                </div>
+
+                {/* Age & Personality */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">ช่วงอายุ</label>
+                        <select {...register("ageRange")} className="w-full neon-select">
+                            <option value="teen">วัยรุ่น (15-20)</option>
+                            <option value="young-adult">ผู้ใหญ่ตอนต้น (21-30)</option>
+                            <option value="adult">ผู้ใหญ่ (31-45)</option>
+                            <option value="middle-age">วัยกลางคน (46-60)</option>
+                            <option value="senior">สูงอายุ (60+)</option>
+                        </select>
                     </div>
-                )}
+                    <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">บุคลิก</label>
+                        <select {...register("personality")} className="w-full neon-select">
+                            <option value="cheerful">สดใส/กระฉับกระเฉง</option>
+                            <option value="calm">สงบ/นิ่ง</option>
+                            <option value="professional">มืออาชีพ</option>
+                            <option value="playful">ขี้เล่น/ตลก</option>
+                            <option value="mysterious">ลึกลับ/เท่</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Background & Expression */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">ฉากหลัง</label>
+                        <select {...register("background")} className="w-full neon-select">
+                            <option value="studio">สตูดิโอ</option>
+                            <option value="outdoor">กลางแจ้ง</option>
+                            <option value="home">ในบ้าน</option>
+                            <option value="office">สำนักงาน</option>
+                            <option value="abstract">แอบสแตรกต์</option>
+                            <option value="product-focused">เน้นสินค้า</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">อารมณ์</label>
+                        <select {...register("expression")} className="w-full neon-select">
+                            <option value="happy">ยิ้มแฉ่ง</option>
+                            <option value="excited">ตื่นเต้น</option>
+                            <option value="neutral">นิ่ง</option>
+                            <option value="serious">จริงจัง</option>
+                        </select>
+                    </div>
+                </div>
             </section>
 
-            {/* === Generate Button === */}
+            {/* Section 4: Video Settings */}
+            <section className="glass-card p-4 space-y-3">
+                <div className="flex items-center gap-2 text-neon-red mb-2">
+                    <Video className="w-4 h-4" />
+                    <span className="text-sm font-semibold">ตั้งค่าวิดีโอ</span>
+                </div>
+
+                {/* Aspect Ratio */}
+                <div className="flex gap-2">
+                    {[
+                        { value: "9:16", label: "📱 9:16 (TikTok)" },
+                        { value: "16:9", label: "🖥️ 16:9 (YouTube)" },
+                        { value: "1:1", label: "⬜ 1:1 (IG)" }
+                    ].map((ar) => (
+                        <button
+                            key={ar.value}
+                            type="button"
+                            onClick={() => setValue("aspectRatio", ar.value as any)}
+                            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${aspectRatio === ar.value ? 'bg-neon-red text-white' : 'bg-muted text-muted-foreground border border-border'}`}
+                        >
+                            {ar.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Duration & Clips */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">ความยาว</label>
+                        <select {...register("videoDuration")} className="w-full neon-select">
+                            <option value="short">สั้น (15-30 วิ)</option>
+                            <option value="medium">กลาง (30-60 วิ)</option>
+                            <option value="long">ยาว (1-3 นาที)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">จำนวนคลิป</label>
+                        <select {...register("clipCount", { valueAsNumber: true })} className="w-full neon-select">
+                            <option value={1}>1 คลิป</option>
+                            <option value={3}>3 คลิป</option>
+                            <option value={5}>5 คลิป</option>
+                            <option value={10}>10 คลิป</option>
+                            <option value={25}>25 คลิป</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Movement & Camera */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">การเคลื่อนไหว</label>
+                        <select {...register("movement")} className="w-full neon-select">
+                            <option value="static">นิ่ง</option>
+                            <option value="minimal">ปานกลาง</option>
+                            <option value="active">เคลื่อนไหวมาก</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">เสียง</label>
+                        <select {...register("voiceSetting")} className="w-full neon-select">
+                            <option value="ai-generated">AI สร้างเสียง</option>
+                            <option value="text-to-speech">Text-to-Speech</option>
+                            <option value="original">ไม่มีเสียง</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            {/* Generate Button */}
             <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-4 rounded-xl bg-gradient-to-r from-neon-red to-pink-500 text-white font-bold text-base shadow-lg shadow-neon-red/30 hover:shadow-neon-red/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-4 rounded-xl bg-gradient-to-r from-neon-red to-pink-600 text-white font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50"
             >
                 {isLoading ? (
                     <>
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        กำลังสร้าง...
+                        กำลังสร้าง... {rpaStatus !== "idle" && `(${rpaStatus})`}
                     </>
                 ) : (
                     <>
-                        <Play className="w-5 h-5" />
-                        สร้างวิดีโอ
+                        <Wand2 className="w-5 h-5" />
+                        สร้างวิดีโอ AI
                     </>
                 )}
             </button>
 
-            {/* === Result Section === */}
-            {hasVideo && (
-                <div className="glass-card p-4 space-y-3">
-                    <div className="flex items-center gap-2 text-green-500">
-                        <Sparkles className="w-5 h-5" />
-                        <span className="font-semibold">สร้างวิดีโอสำเร็จ!</span>
+            {/* Result Section */}
+            {result && (
+                <section className="glass-card p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-green-500 mb-2">
+                        <Sparkles className="w-4 h-4" />
+                        <span className="text-sm font-semibold">ผลลัพธ์</span>
                     </div>
-                    <video
-                        src={result?.data?.videoUrl}
-                        controls
-                        className="w-full rounded-lg"
-                    />
-                    <button
-                        type="button"
-                        onClick={downloadVideo}
-                        className="w-full py-2 rounded-lg bg-green-500 text-white font-medium"
-                    >
-                        ดาวน์โหลดวิดีโอ
-                    </button>
+
+                    {result.data?.script && (
+                        <div className="p-3 bg-muted/50 rounded-lg">
+                            <p className="text-xs text-muted-foreground mb-1">สคริปต์:</p>
+                            <p className="text-sm whitespace-pre-wrap">{result.data.script}</p>
+                        </div>
+                    )}
+
+                    {hasVideo && (
+                        <div className="space-y-2">
+                            <video
+                                src={result.data.videoUrl}
+                                controls
+                                className="w-full rounded-lg"
+                            />
+                            <button
+                                type="button"
+                                onClick={downloadVideo}
+                                className="w-full py-2 bg-green-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+                            >
+                                <Download className="w-4 h-4" />
+                                ดาวน์โหลดวิดีโอ
+                            </button>
+                        </div>
+                    )}
+                </section>
+            )}
+
+            {/* Extension Status */}
+            {isExtension && (
+                <div className="text-center text-xs text-muted-foreground">
+                    🔌 Extension Mode: RPA พร้อมใช้งาน
                 </div>
             )}
         </form>

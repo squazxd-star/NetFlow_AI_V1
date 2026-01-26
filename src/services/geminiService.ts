@@ -11,33 +11,34 @@ const getGenAI = async () => {
     return new GoogleGenerativeAI(key);
 };
 
-/**
- * Enhanced Script Request - Uses ALL form fields
- */
+// Extended interface for script generation input - includes ALL form fields
 export interface ScriptRequest {
-    // Required
+    // Product Info
     productName: string;
+    productDescription?: string;
+    productId?: string;
+    mustUseKeywords?: string;
+    avoidKeywords?: string;
 
-    // Script Style
-    template: string;      // product-review, unboxing, comparison, etc.
-    saleStyle: string;     // hard, soft, educational, storytelling
-    voiceTone: string;     // energetic, calm, friendly, professional
-    language: string;      // th, th-north, th-south, th-isan
+    // Script Settings
+    style: string;          // saleStyle: hard, soft, educational, storytelling
+    tone: string;           // voiceTone: energetic, calm, friendly, professional
+    language: string;       // th-central, th-north, th-south, th-isan, en
+    template?: string;      // product-review, brainrot-product, etc.
+    hookText?: string;      // Opening hook
+    ctaText?: string;       // Call to action
 
-    // Character
-    gender: string;        // male, female
+    // Character Settings
+    gender?: string;        // male, female, any
+    ageRange?: string;      // teen, young-adult, adult, etc.
+    personality?: string;   // cheerful, calm, professional, playful, mysterious
+    background?: string;    // studio, outdoor, home, office, abstract
 
-    // Hook & CTA
-    hookEnabled?: boolean;
-    hookText?: string;
-    ctaEnabled?: boolean;
-    ctaText?: string;
-
-    // Custom
-    aiPrompt?: string;     // User's additional instructions
-
-    // Video
-    aspectRatio?: string;  // 9:16, 16:9
+    // Video Settings
+    expression?: string;    // happy, excited, neutral, serious
+    movement?: string;      // static, minimal, active
+    aspectRatio?: string;   // 9:16, 16:9, 1:1
+    videoDuration?: string; // short, medium, long
 }
 
 // Interface for the result
@@ -48,102 +49,92 @@ export interface ScriptResult {
 }
 
 /**
- * Template descriptions for AI understanding
+ * Build a comprehensive prompt from all form fields
  */
-const TEMPLATE_DESCRIPTIONS: Record<string, string> = {
-    "product-review": "รีวิวสินค้าอย่างละเอียด พูดถึงคุณสมบัติ ข้อดี และประสบการณ์ใช้งานจริง",
-    "unboxing": "แกะกล่องสินค้า แสดงความตื่นเต้น พูดถึงแพ็คเกจและ first impression",
-    "comparison": "เปรียบเทียบก่อน-หลังใช้สินค้า หรือเปรียบกับสินค้าอื่น",
-    "testimonial": "รีวิวจากมุมมองลูกค้า เล่าปัญหาที่เจอและสินค้าช่วยได้อย่างไร",
-    "flash-sale": "โปรโมชั่นเร่งด่วน สร้างความรู้สึกเร่งรีบ ต้องรีบซื้อ",
-    "tutorial": "สอนวิธีใช้งานสินค้า step-by-step",
-    "lifestyle": "แสดงให้เห็นว่าสินค้าเข้ากับไลฟ์สไตล์ได้อย่างไร",
-    "before-after": "แสดงผลลัพธ์ก่อนและหลังใช้สินค้า อย่างน่าทึ่ง"
-};
+const buildFullPrompt = (data: ScriptRequest): string => {
+    const templateDescriptions: Record<string, string> = {
+        "product-review": "Product review format with honest opinions and recommendations",
+        "brainrot-product": "Viral brainrot style with fast cuts and memes mixed with product promotion",
+        "unboxing": "Unboxing experience showing first impressions",
+        "comparison": "Before/after or vs competitor comparison",
+        "testimonial": "Customer testimonial style",
+        "flash-sale": "Urgency-driven flash sale promotion",
+        "tutorial": "How-to tutorial teaching product usage",
+        "lifestyle": "Lifestyle integration showing product in daily life",
+        "trending": "Following current TikTok trends",
+        "mini-drama": "Short drama/storytelling format",
+        "before-after": "Transformation before and after using product"
+    };
 
-/**
- * Build rich prompt from all form fields
- */
-const buildRichPrompt = (data: ScriptRequest): string => {
-    const templateDesc = TEMPLATE_DESCRIPTIONS[data.template] || TEMPLATE_DESCRIPTIONS["product-review"];
+    const toneDescriptions: Record<string, string> = {
+        "energetic": "High energy, enthusiastic, exciting",
+        "calm": "Relaxed, soothing, trustworthy",
+        "friendly": "Warm, conversational, relatable",
+        "professional": "Expert, authoritative, credible"
+    };
+
+    const styleDescriptions: Record<string, string> = {
+        "hard": "aggressive hard-sell with strong urgency",
+        "soft": "gentle persuasion with subtle nudges",
+        "educational": "informative and teaching-focused",
+        "storytelling": "narrative-driven emotional connection"
+    };
 
     let prompt = `
-คุณคือนักเขียนสคริปต์ TikTok มืออาชีพ สร้างสคริปต์วิดีโอสั้นสำหรับขายสินค้า
+You are an expert TikTok script writer specializing in viral product videos for Thai audiences.
 
-## ข้อมูลสินค้า
-- ชื่อสินค้า: ${data.productName}
+## PRODUCT INFORMATION
+- Product Name: ${data.productName}
+${data.productDescription ? `- Description: ${data.productDescription}` : ""}
+${data.mustUseKeywords ? `- Must Include Keywords: ${data.mustUseKeywords}` : ""}
+${data.avoidKeywords ? `- Avoid These Words: ${data.avoidKeywords}` : ""}
 
-## รูปแบบวิดีโอ
-- Template: ${data.template} (${templateDesc})
-- สไตล์การขาย: ${data.saleStyle === 'hard' ? 'ขายแรง กระตุ้นให้ซื้อทันที' :
-            data.saleStyle === 'soft' ? 'ขายนุ่ม ไม่กดดัน' :
-                data.saleStyle === 'educational' ? 'ให้ความรู้ก่อนขาย' : 'เล่าเรื่องสร้างอารมณ์'}
-- น้ำเสียง: ${data.voiceTone === 'energetic' ? 'ตื่นเต้น มีพลัง' :
-            data.voiceTone === 'calm' ? 'สงบ น่าเชื่อถือ' :
-                data.voiceTone === 'friendly' ? 'เป็นกันเอง อบอุ่น' : 'มืออาชีพ จริงจัง'}
+## SCRIPT STYLE
+- Template: ${data.template || "product-review"} (${templateDescriptions[data.template || "product-review"] || ""})
+- Sales Approach: ${data.style} (${styleDescriptions[data.style] || ""})
+- Voice Tone: ${data.tone} (${toneDescriptions[data.tone] || ""})
+- Language: ${data.language === "th-central" ? "Thai (Central dialect)" :
+            data.language === "th-north" ? "Thai (Northern dialect)" :
+                data.language === "th-south" ? "Thai (Southern dialect)" :
+                    data.language === "th-isan" ? "Thai (Isan/Northeastern dialect)" : "English"}
 
-## ตัวละคร
-- เพศผู้พูด: ${data.gender === 'male' ? 'ชาย' : 'หญิง'}
-- ภาษา: ${data.language === 'th' ? 'ไทยกลาง' :
-            data.language === 'th-north' ? 'ภาษาเหนือ' :
-                data.language === 'th-south' ? 'ภาษาใต้' : 'ภาษาอีสาน'}
-`;
+## PRESENTER CHARACTER
+- Gender: ${data.gender || "female"}
+- Age Range: ${data.ageRange || "young-adult"}
+- Personality: ${data.personality || "cheerful"}
+- Expression: ${data.expression || "happy"}
 
-    // Add hook if enabled
-    if (data.hookEnabled) {
-        prompt += `\n## ประโยคเปิด (Hook)\n`;
-        if (data.hookText) {
-            prompt += `- ใช้ประโยคเปิดว่า: "${data.hookText}"\n`;
-        } else {
-            prompt += `- สร้างประโยคเปิดที่ดึงดูดให้หยุดดู\n`;
-        }
-    }
+## VIDEO SPECIFICATIONS
+- Background Setting: ${data.background || "studio"}
+- Camera Movement: ${data.movement || "minimal"}
+- Aspect Ratio: ${data.aspectRatio || "9:16"} (${data.aspectRatio === "9:16" ? "TikTok vertical" : data.aspectRatio === "16:9" ? "YouTube horizontal" : "Instagram square"})
+- Duration: ${data.videoDuration === "short" ? "15-30 seconds" : data.videoDuration === "medium" ? "30-60 seconds" : "1-3 minutes"}
 
-    // Add CTA if enabled
-    if (data.ctaEnabled) {
-        prompt += `\n## Call to Action (CTA)\n`;
-        if (data.ctaText) {
-            prompt += `- ใช้ CTA ว่า: "${data.ctaText}"\n`;
-        } else {
-            prompt += `- สร้าง CTA กระตุ้นให้กดซื้อ เช่น "กดตะกร้าเลย" หรือ "ลิงก์อยู่ใน bio"\n`;
-        }
-    }
+## SCRIPT STRUCTURE
+${data.hookText ? `- Opening Hook: "${data.hookText}"` : "- Create an attention-grabbing hook"}
+${data.ctaText ? `- Call to Action: "${data.ctaText}"` : "- Include a compelling call to action"}
 
-    // Add user's custom instructions
-    if (data.aiPrompt && data.aiPrompt.trim()) {
-        prompt += `\n## คำสั่งเพิ่มเติมจากผู้ใช้\n${data.aiPrompt}\n`;
-    }
+## OUTPUT REQUIREMENTS
+Generate a complete TikTok script in ${data.language?.startsWith("th") ? "Thai" : "English"} with:
+1. [HOOK] - Attention-grabbing opening (2-3 seconds)
+2. [PROBLEM] - Relate to audience pain point
+3. [SOLUTION] - Introduce the product as the answer
+4. [PROOF] - Benefits, features, or testimonial
+5. [CTA] - Clear call to action
 
-    // Output format
-    prompt += `
-## รูปแบบ Output
-- เขียนเป็นสคริปต์พูด (ไม่ใช่ scene description)
-- ความยาว 15-30 วินาที
-- ใช้ภาษาที่เป็นธรรมชาติ เหมือนคนพูดจริงๆ
-- ห้ามใช้คำว่า "100%", "การันตี", "รักษาโรค" หรือคำโฆษณาเกินจริง
-
-## สคริปต์:
+Output ONLY the script dialogue. No metadata, timestamps, or stage directions.
+Make it sound natural, conversational, and viral-worthy.
 `;
 
     return prompt;
 };
 
 /**
- * Helper to generate using OpenAI
+ * Helper to generate using OpenAI with full form data
  */
 const generateWithOpenAI = async (apiKey: string, data: ScriptRequest): Promise<string> => {
     console.log("🤖 Generating script with OpenAI (GPT-4o-mini)...");
-    console.log("📋 Using fields:", {
-        productName: data.productName,
-        template: data.template,
-        saleStyle: data.saleStyle,
-        voiceTone: data.voiceTone,
-        gender: data.gender,
-        hookEnabled: data.hookEnabled,
-        ctaEnabled: data.ctaEnabled
-    });
-
-    const prompt = buildRichPrompt(data);
+    const prompt = buildFullPrompt(data);
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -152,13 +143,12 @@ const generateWithOpenAI = async (apiKey: string, data: ScriptRequest): Promise<
             "Authorization": `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-            model: "gpt-4o-mini",
+            model: "gpt-4o-mini", // Cost efficient and fast
             messages: [
-                { role: "system", content: "You are a professional Thai TikTok script writer. Write natural, engaging scripts that sell products." },
+                { role: "system", content: "You are a professional TikTok script writer." },
                 { role: "user", content: prompt }
             ],
-            temperature: 0.8,
-            max_tokens: 500
+            temperature: 0.7
         })
     });
 
@@ -170,7 +160,6 @@ const generateWithOpenAI = async (apiKey: string, data: ScriptRequest): Promise<
     const json = await response.json();
     return json.choices[0].message.content || "";
 };
-
 
 /**
  * Generates a viral TikTok script using the selected AI Provider (OpenAI or Gemini)
@@ -203,10 +192,7 @@ export const generateVideoScript = async (
             console.log(`🔷 Attempting script generation with Gemini model: ${modelName}`);
             const genAI = await getGenAI();
             const model = genAI.getGenerativeModel({ model: modelName });
-
-            // Use the same rich prompt as OpenAI
-            const prompt = buildRichPrompt(data);
-
+            const prompt = buildFullPrompt(data);
             const result = await model.generateContent(prompt);
             const response = await result.response;
             return response.text();

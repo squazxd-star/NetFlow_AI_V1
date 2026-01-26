@@ -111,42 +111,53 @@ export const useVideoGeneration = () => {
         setError(null);
         setResult(null);
 
-        console.log("🚀 Starting Workflow...", {
-            productName: data.productName,
-            template: data.template,
-            saleStyle: data.saleStyle,
-            voiceTone: data.voiceTone,
-            language: data.language
-        });
-
         try {
             // Check if RPA mode is enabled
             const useRPA = localStorage.getItem("netflow_use_rpa") === "true";
 
-            if (useRPA && isExtension) {
-                // Use RPA mode - generate script first, then send to VideoFX
+            if (useRPA && data.aiPrompt) {
+                // Use RPA mode
                 await generateWithRPA(data.aiPrompt || `Create a video for ${data.productName}`);
                 return;
             }
 
-            // Build payload with ALL new schema fields
+            // Pass ALL form fields to the workflow
             const payload = {
+                // Product Info
                 productName: data.productName || "สินค้าทั่วไป",
+                productDescription: data.productDescription || "",
+                productId: data.productId || "",
+                mustUseKeywords: data.mustUseKeywords || "",
+                avoidKeywords: data.avoidKeywords || "",
+
+                // Script Settings
+                style: data.saleStyle || "storytelling",
+                tone: data.voiceTone || "energetic",
+                language: data.language || "th-central",
                 template: data.template || "product-review",
-                saleStyle: data.saleStyle || "soft",
-                voiceTone: data.voiceTone || "friendly",
-                language: data.language || "th",
-                gender: data.gender || "female",
-                hookEnabled: data.hookEnabled ?? true,
                 hookText: data.hookText || "",
-                ctaEnabled: data.ctaEnabled ?? true,
                 ctaText: data.ctaText || "",
-                aiPrompt: data.aiPrompt || "",
+
+                // Character Settings
+                gender: data.gender || "female",
+                ageRange: data.ageRange || "young-adult",
+                personality: data.personality || "cheerful",
+                background: data.background || "studio",
+
+                // Video Settings
+                expression: data.expression || "happy",
+                movement: data.movement || "minimal",
                 aspectRatio: data.aspectRatio || "9:16",
-                userImage: data.userImage,
+                videoDuration: data.videoDuration || "short",
+
+                // Advanced Video Settings (if image provided)
+                userImage: data.userImage || undefined,
+                prompt: data.aiPrompt || `Create a viral TikTok video for ${data.productName}`,
+                loopCount: data.loopCount || 1,
+                concatenate: data.concatenate || false
             };
 
-            console.log("📋 Sending payload to workflow:", payload);
+            console.log("📤 Sending full payload to workflow:", payload);
 
             const serviceResult = await runFullWorkflow(payload);
 
