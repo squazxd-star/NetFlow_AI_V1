@@ -147,59 +147,64 @@ async function bypassSplashScreens() {
     console.log("[VideoFX] Checking for splash screens or overlays...");
 
     // 1. Try to dismiss marketing overlays (e.g. Nano Banana Pro)
-    // We look for anything that looks like a Close button
     const dismissSelectors = [
         'button[aria-label*="Close"]',
         'button[aria-label*="Dismiss"]',
         'button[aria-label*="ปิด"]',
         'button[aria-label*="x"]',
-        '.close-button',
-        '.dismiss-button',
         '[class*="close"]',
-        '[class*="dismiss"]'
+        '[class*="dismiss"]',
+        '[aria-label*="close"]'
     ];
 
-    for (let i = 0; i < 3; i++) { // Try up to 3 times to clear overlays
+    for (let i = 0; i < 3; i++) {
         let found = false;
         for (const selector of dismissSelectors) {
             const elements = document.querySelectorAll(selector);
             for (const el of elements) {
                 if (isVisible(el)) {
-                    console.log("[VideoFX] Dismissing visible overlay/banner:", selector);
+                    console.log("[VideoFX] Dismissing overlay:", selector);
                     el.click();
                     found = true;
-                    await new Promise(r => setTimeout(r, 800));
+                    await new Promise(r => setTimeout(r, 1000));
                 }
             }
         }
         if (!found) break;
     }
 
-    // 2. Try to click "New Project" button if on landing page
-    // We only do this if we don't see the editor elements yet
-    const isAlreadyInEditor = isVisible(document.querySelector('textarea[placeholder*="Describe"]')) ||
-        isVisible(document.querySelector('textarea[placeholder*="prompt"]'));
+    // 2. Try to find the "New Project" trigger
+    // It might be a button, a div, or a card. We search broadly for the text.
+    console.log("[VideoFX] Searching for New Project trigger...");
 
-    if (isAlreadyInEditor) {
-        console.log("[VideoFX] Already in editor, skipping Landing Page check.");
-        return;
-    }
+    const keywords = ['new project', 'โปรเจกต์ใหม่', 'create project'];
+    const allElements = document.querySelectorAll('button, div, span, [role="button"]');
 
-    console.log("[VideoFX] Searching for New Project button...");
-    const buttons = document.querySelectorAll('button, [role="button"]');
-    for (const btn of buttons) {
-        const text = btn.textContent?.toLowerCase() || '';
-        const aria = btn.getAttribute('aria-label')?.toLowerCase() || '';
-        if (text.includes('new project') || text.includes('โปรเจกต์ใหม่') ||
-            aria.includes('new project') || aria.includes('โปรเจกต์ใหม่') ||
-            text === '+') {
+    for (const el of allElements) {
+        // Only check elements with small amount of children to target the actual button/label
+        if (el.children.length > 5) continue;
 
-            if (isVisible(btn)) {
-                console.log("[VideoFX] Clicking New Project button:", btn.textContent || aria);
-                btn.click();
-                await new Promise(r => setTimeout(r, 3000)); // Wait for editor to load
+        const text = el.textContent?.toLowerCase() || '';
+        const aria = el.getAttribute('aria-label')?.toLowerCase() || '';
+
+        if (keywords.some(k => text.includes(k) || aria.includes(k))) {
+            if (isVisible(el)) {
+                console.log("[VideoFX] Found New Project trigger:", text || aria);
+                el.click();
+                await new Promise(r => setTimeout(r, 3000)); // Wait for transition
                 return;
             }
+        }
+    }
+
+    // Fallback: search for any element that has a "+" and some relevant text nearby
+    const plusElements = Array.from(document.querySelectorAll('*')).filter(el => el.textContent?.trim() === '+');
+    for (const plus of plusElements) {
+        if (isVisible(plus)) {
+            console.log("[VideoFX] Found '+' element, clicking it as fallback...");
+            plus.click();
+            await new Promise(r => setTimeout(r, 3000));
+            return;
         }
     }
 }
@@ -207,29 +212,36 @@ async function bypassSplashScreens() {
 // Find the prompt textarea (try multiple selectors)
 async function findPromptInput() {
     console.log("[VideoFX] Searching for prompt input...");
-    const selectors = [
-        'textarea[placeholder*="Describe"]', // Most specific for Veo editor
-        'textarea[placeholder*="describe"]',
-        'textarea[placeholder*="prompt"]',
-        'textarea[placeholder*="Prompt"]',
-        'textarea[placeholder*="video"]',
-        'textarea',
-        '[contenteditable="true"]'
-    ];
 
-    for (const selector of selectors) {
-        try {
-            const elements = document.querySelectorAll(selector);
-            for (const el of elements) {
-                if (isVisible(el)) {
-                    // Check if it's the BIG textarea, not a small search box
-                    if (el.tagName === 'TEXTAREA' || el.offsetHeight > 40) {
-                        console.log("[VideoFX] Found visible input with selector:", selector);
-                        return el;
+    // We retry a few times because the page might still be loading after "New Project" click
+    for (let retry = 0; retry < 5; retry++) {
+        const selectors = [
+            'textarea[placeholder*="Describe"]',
+            'textarea[placeholder*="describe"]',
+            'textarea[placeholder*="prompt"]',
+            'textarea[placeholder*="Prompt"]',
+            'textarea[placeholder*="video"]',
+            'textarea',
+            '[contenteditable="true"]'
+        ];
+
+        for (const selector of selectors) {
+            try {
+                const elements = document.querySelectorAll(selector);
+                for (const el of elements) {
+                    if (isVisible(el)) {
+                        // Ensure it's not a tiny input or a hidden one
+                        if (el.offsetHeight > 30) {
+                            console.log("[VideoFX] Found visible input with selector:", selector);
+                            return el;
+                        }
                     }
                 }
-            }
-        } catch (e) { }
+            } catch (e) { }
+        }
+
+        console.log(`[VideoFX] Input not found, retry ${retry + 1}/5...`);
+        await new Promise(r => setTimeout(r, 2000));
     }
 
     throw new Error("Could not find prompt input (Ensure you are in the Editor)");
