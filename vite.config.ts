@@ -22,13 +22,13 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, "index.html"),
-        content: path.resolve(__dirname, "src/content.tsx"),
       },
       output: {
         entryFileNames: "src/[name].js",
         chunkFileNames: "assets/[name]-[hash].js",
-        assetFileNames: "assets/[name].[ext]"
+        assetFileNames: "assets/[name].[ext]",
       }
     }
   }
 }));
+
