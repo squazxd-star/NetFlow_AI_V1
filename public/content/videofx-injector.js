@@ -151,9 +151,15 @@ function debugHighlight(el, color = 'red') {
 async function bypassSplashScreens() {
     console.log("[VideoFX] CRITICAL: Starting aggressive bypass v2...");
 
+    // EARLY EXIT: Check if we're already in the editor
+    if (isAlreadyInEditor()) {
+        console.log("[VideoFX] Already in editor! Skipping bypass...");
+        return;
+    }
+
     // STEP 1: Wait for page to fully stabilize (SPA takes time to render)
-    console.log("[VideoFX] Waiting 5 seconds for page to fully render...");
-    await new Promise(r => setTimeout(r, 5000));
+    console.log("[VideoFX] Waiting 3 seconds for page to fully render...");
+    await new Promise(r => setTimeout(r, 3000));
 
     // STEP 2: Scroll down to reveal the "New Project" button (it's hidden below banner)
     window.scrollTo(0, 400);
@@ -224,31 +230,65 @@ async function bypassSplashScreens() {
     }
 }
 
+// Check if we are already in the editor (has prompt input visible)
+function isAlreadyInEditor() {
+    // Look for Thai placeholder text or English placeholder
+    const allElements = document.querySelectorAll('textarea, [contenteditable="true"], input[type="text"]');
+    for (const el of allElements) {
+        if (!isVisible(el)) continue;
+
+        const placeholder = el.getAttribute('placeholder') || '';
+        const innerText = el.textContent || el.innerText || '';
+
+        // Check for Thai or English placeholder indicators
+        if (placeholder.includes('พิมพ์') || placeholder.includes('พรอมต์') ||
+            placeholder.includes('Describe') || placeholder.includes('prompt') ||
+            innerText.includes('พิมพ์ในช่องพรอมต์')) {
+            return true;
+        }
+
+        // Also check if there's a visible textarea with decent size
+        if (el.tagName === 'TEXTAREA' && el.offsetHeight > 50) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Find the prompt textarea with high-level retry and multiple strategies
 async function findPromptInput() {
     console.log("[VideoFX] Searching for target input area...");
 
     for (let attempt = 0; attempt < 10; attempt++) {
-        // Strategy A: Direct selectors
-        const selectors = [
-            'textarea[placeholder*="Describe"]',
-            'textarea[placeholder*="describe"]',
-            'textarea[placeholder*="Prompt"]',
-            'textarea',
-            '[contenteditable="true"]'
-        ];
+        // Strategy A: Find by Thai placeholder text
+        const allInputs = document.querySelectorAll('textarea, [contenteditable="true"], input[type="text"]');
+        for (const el of allInputs) {
+            if (!isVisible(el)) continue;
 
-        for (const sel of selectors) {
-            const el = document.querySelector(sel);
-            if (isVisible(el) && el.offsetHeight > 50) {
-                console.log("[VideoFX] Found input via Selector:", sel);
+            const placeholder = el.getAttribute('placeholder') || '';
+            const innerText = el.textContent || el.innerText || '';
+
+            // Match Thai or English placeholders
+            if (placeholder.includes('พิมพ์') || placeholder.includes('พรอมต์') ||
+                placeholder.includes('Describe') || placeholder.includes('prompt') ||
+                innerText.includes('พิมพ์ในช่องพรอมต์')) {
+                console.log("[VideoFX] Found input via Thai/EN placeholder!");
                 debugHighlight(el, 'blue');
                 return el;
             }
         }
 
-        // Strategy B: XPath search for placeholder text
-        const xpathQuery = "//*[contains(@placeholder, 'Describe') or contains(@placeholder, 'video')]";
+        // Strategy B: Any visible textarea or contenteditable with good size
+        for (const el of allInputs) {
+            if (isVisible(el) && el.offsetHeight > 40) {
+                console.log("[VideoFX] Found input via size check:", el.tagName);
+                debugHighlight(el, 'blue');
+                return el;
+            }
+        }
+
+        // Strategy C: XPath search for placeholder text (English fallback)
+        const xpathQuery = "//*[contains(@placeholder, 'Describe') or contains(@placeholder, 'video') or contains(@placeholder, 'พิมพ์')]";
         const res = document.evaluate(xpathQuery, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
         if (res.singleNodeValue && isVisible(res.singleNodeValue)) {
             console.log("[VideoFX] Found input via XPath Strategy");
@@ -256,16 +296,16 @@ async function findPromptInput() {
             return res.singleNodeValue;
         }
 
-        // Strategy C: If we still can't find it, maybe we need to click "New Project" again?
+        // Strategy D: If we still can't find it after 3 attempts, try bypass again
         if (attempt === 3 || attempt === 7) {
-            console.log("[VideoFX] Still not in editor, retrying landing page bypass...");
+            console.log("[VideoFX] Still not finding input, retrying landing page bypass...");
             await bypassSplashScreens();
         }
 
         await new Promise(r => setTimeout(r, 1500));
     }
 
-    throw new Error("Unable to enter Editor mode. Please manually click '+ New Project' and I will take over.");
+    throw new Error("Unable to find prompt input. Please make sure you are in the Video Editor.");
 }
 
 // Find the generate button
