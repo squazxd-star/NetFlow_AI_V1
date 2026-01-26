@@ -104,9 +104,10 @@ Output ONLY the script dialogue. No metadata.
 
 /**
  * Uses GPT-4o Vision to analyze the product image (and optional character) to generate a highly detailed prompt
+ * @param totalDuration - Total video duration in seconds (default 8)
  */
-const generateVisualPrompt = async (apiKey: string, imageBase64: string, productName: string, style: string, characterImage?: string): Promise<string> => {
-    console.log("👁️ Analyzing Product (and Character) with GPT-4o Vision...");
+const generateVisualPrompt = async (apiKey: string, imageBase64: string, productName: string, style: string, characterImage?: string, totalDuration: number = 8): Promise<string> => {
+    console.log(`👁️ Analyzing Product (and Character) with GPT-4o Vision... Duration: ${totalDuration}s`);
 
     try {
         const messagesContent: any[] = [
@@ -117,12 +118,13 @@ const generateVisualPrompt = async (apiKey: string, imageBase64: string, product
                 ${characterImage ? "Image 2: The Character/Presenter." : ""}
                 
                 1. Identify the EXACT Product Name / Brand from the text on the package (if any).
-                2. Create a HIGHLY DETAILED, CINEMATIC video generation prompt for a single **8-second continuous shot**.
+                2. Create a HIGHLY DETAILED, CINEMATIC video generation prompt for a single **${totalDuration}-second continuous shot**.
                    ${characterImage ? "- **INTEGRATION**: Describe the Character (Image 2) interacting with the Product (Image 1) naturally." : ""}
                    - Focus on **CAMERA MOVEMENT** (e.g., "Slow smooth pan", "Rack focus", "Dolly in").
                    - Describe **LIGHTING & ATMOSPHERE** (e.g., "Golden hour", "Neon rim light", "Soft diffusion").
                    - Describe **ACTION** (e.g., "Smoke swirling", "Water droplets falling", "Fabric flowing").
-                   - **DO NOT** use "cuts" or "scenes". Write one fluid visual description that lasts 8 seconds.
+                   - **DO NOT** use "cuts" or "scenes". Write one fluid visual description that lasts ${totalDuration} seconds.
+                   - **PACING**: Structure the narrative to fill exactly ${totalDuration} seconds${totalDuration > 8 ? `, roughly ${Math.ceil(totalDuration / 8)} distinct visual moments smoothly transitioning into each other` : ""}.
                    - Style: ${style}.
                 
                 Output format strictly:
@@ -427,6 +429,11 @@ export const runFullWorkflow = async (data: ScriptRequest | AdvancedVideoRequest
         // Cast to AdvancedVideoRequest safely
         let advData = data as any;
 
+        // Calculate total video duration based on clip count (1 clip = 8 seconds)
+        const loopCount = typeof advData.loopCount === 'number' ? advData.loopCount : 1;
+        const totalDuration = loopCount * 8;
+        console.log(`📹 Video Duration: ${loopCount} clip(s) = ${totalDuration} seconds`);
+
         // 1. Vision Analysis (Brain 🧠)
         if (advData.userImage) {
             console.log("🧠 Starting Smart Vision Analysis (GPT-4o Vision)...");
@@ -434,7 +441,7 @@ export const runFullWorkflow = async (data: ScriptRequest | AdvancedVideoRequest
             // Here we reuse getApiKey('openai') logic.
             const apiKey = await getApiKey('openai');
             if (apiKey) {
-                const visionRes = await generateVisualPrompt(apiKey, advData.userImage, advData.productName, advData.style, advData.characterImage);
+                const visionRes = await generateVisualPrompt(apiKey, advData.userImage, advData.productName, advData.style, advData.characterImage, totalDuration);
                 if (visionRes) {
                     // Parse logic: "Name: [xxx]\nPrompt: [yyy]"
                     const nameMatch = visionRes.match(/Name:\s*(.+)/i);
