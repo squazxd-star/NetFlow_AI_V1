@@ -1,6 +1,6 @@
 /**
- * Google Lab Automation Service - SIMPLIFIED FLOW (FIXED)
- * Uses "เพิ่มไปยังพรอมต์" → "ส่วนผสมในวิดีโอ" for seamless transfer
+ * Google Lab Automation Service - SIMPLIFIED FLOW (FINAL ROBUST)
+ * Strategies: Text -> Parent -> Coordinates -> Aggressive Upload
  */
 
 // --- Utilities ---
@@ -16,7 +16,6 @@ const clickByText = async (searchText: string, tagFilter?: string): Promise<bool
             return true;
         }
     }
-    // console.warn(`❌ Not found: "${searchText}"`); // Reduced noise
     return false;
 };
 
@@ -70,7 +69,7 @@ const uploadSingleImage = async (base64Image: string, imageIndex: number): Promi
         }
     }
 
-    // STRATEGY 2: UI Interaction (If direct injection didn't trigger Crop)
+    // STRATEGY 2: UI Interaction (Fallback)
     if (!injected) {
         console.log("⚠️ Trying UI click flow...");
 
@@ -140,7 +139,7 @@ const waitForGenerationComplete = async (timeout = 180000): Promise<boolean> => 
             }
         }
 
-        // Check if "เพิ่มไปยังพรอมต์" button appeared
+        // Check if "Add to prompt" button appeared
         const addToPromptBtn = Array.from(document.querySelectorAll('button, div, span')).find(
             el => el.textContent?.includes('เพิ่มไปยังพรอมต์')
         );
@@ -160,8 +159,6 @@ const waitForGenerationComplete = async (timeout = 180000): Promise<boolean> => 
 // --- Click on Generated Image ---
 const clickOnGeneratedImage = async (): Promise<boolean> => {
     console.log("🔍 Clicking on generated image...");
-
-    // Find large images that are likely results
     const images = document.querySelectorAll('img');
     for (const img of images) {
         if (img.width > 200 && img.height > 200) {
@@ -201,7 +198,6 @@ const fillPromptAndGenerate = async (prompt: string): Promise<boolean> => {
             return true;
         }
     }
-
     return false;
 };
 
@@ -211,7 +207,6 @@ const waitForVideoComplete = async (timeout = 300000): Promise<string | null> =>
     const startTime = Date.now();
 
     while (Date.now() - startTime < timeout) {
-        // Check for video elements
         const videos = document.querySelectorAll('video');
         for (const video of videos) {
             if (video.src && video.src.length > 50) {
@@ -220,24 +215,14 @@ const waitForVideoComplete = async (timeout = 300000): Promise<string | null> =>
             }
         }
 
-        // Check for video source
         const sources = document.querySelectorAll('source');
         for (const source of sources) {
             if (source.src && source.src.includes('.mp4')) {
                 return source.src;
             }
         }
-
-        // Check progress
-        const allText = document.body.innerText;
-        const percentMatch = allText.match(/(\d+)%/);
-        if (percentMatch) {
-            console.log(`Video progress: ${percentMatch[1]}%`);
-        }
-
         await delay(5000);
     }
-
     return null;
 };
 
@@ -247,7 +232,7 @@ const switchToImageTab = async (): Promise<boolean> => {
     return await clickByText('รูปภาพ', 'button');
 };
 
-// --- Main Pipeline Config ---
+// --- Config ---
 export interface PipelineConfig {
     characterImage: string;
     productImage: string;
@@ -265,22 +250,82 @@ export const runTwoStagePipeline = async (config: PipelineConfig): Promise<{
     console.log("🚀🚀🚀 Starting SIMPLIFIED Pipeline 🚀🚀🚀");
 
     try {
+        console.log("\n========== STAGE 0: DASHBOARD CHECK ==========\n");
+
+        // STRATEGY: Text -> Parent -> Coordinate Fallback
+        const dashboardKeywords = ['โปรเจ็กต์ใหม่', 'New project', 'Start new', 'Pro', 'สร้าง'];
+        let clicked = false;
+
+        // 1. TEXT SEARCH
+        for (const kw of dashboardKeywords) {
+            const elements = Array.from(document.querySelectorAll('*')).filter(el =>
+                el.children.length === 0 && el.textContent?.includes(kw)
+            );
+
+            for (const el of elements) {
+                console.log(`🎯 Found text "${kw}", attempting parent clicks...`);
+                // Click text
+                (el as HTMLElement).click();
+
+                // Click 5 levels of parents
+                let parent = el.parentElement;
+                for (let i = 0; i < 5; i++) {
+                    if (parent) {
+                        try {
+                            const opts = { bubbles: true, cancelable: true, view: window };
+                            parent.dispatchEvent(new MouseEvent('mousedown', opts));
+                            parent.dispatchEvent(new MouseEvent('mouseup', opts));
+                            parent.dispatchEvent(new MouseEvent('click', opts));
+                            console.log(`👆 Force-clicked parent L${i + 1}`);
+                        } catch (e) { }
+                        parent = parent.parentElement;
+                    }
+                }
+                clicked = true;
+                break;
+            }
+            if (clicked) break;
+        }
+
+        // 2. COORDINATE FALLBACK (User Requested Backup Plan)
+        if (!clicked) {
+            console.log("⚠️ Text search failed. Using COORDINATE FALLBACK (Backup Plan)...");
+
+            // Try clicking the area where "New Project" usually sits.
+            // Assumption: Fullscreen, Bottom-Center-Right area or Grid layout.
+            // We try percentage-based points.
+            const clickPoints = [
+                { x: window.innerWidth * 0.5, y: window.innerHeight * 0.75 }, // Dead center bottom (most likely for grid)
+                { x: window.innerWidth * 0.4, y: window.innerHeight * 0.75 }, // Slightly left
+                { x: window.innerWidth * 0.6, y: window.innerHeight * 0.75 }, // Slightly right
+                { x: window.innerWidth * 0.5, y: window.innerHeight * 0.85 }  // Lower center
+            ];
+
+            for (const p of clickPoints) {
+                console.log(`📍 Clicking fallback coordinate: ${Math.round(p.x)}, ${Math.round(p.y)}`);
+                const el = document.elementFromPoint(p.x, p.y);
+                if (el) {
+                    (el as HTMLElement).click();
+                    const opts = { bubbles: true, clientX: p.x, clientY: p.y, view: window };
+                    el.dispatchEvent(new MouseEvent('mousedown', opts));
+                    el.dispatchEvent(new MouseEvent('mouseup', opts));
+                    el.dispatchEvent(new MouseEvent('click', opts));
+
+                    clicked = true;
+                    await delay(500);
+                }
+            }
+        }
+
+        if (clicked) {
+            console.log("✅ Executed Dashboard Click Sequence (Text or Fallback)");
+            await delay(4000);
+        } else {
+            console.log("ℹ️ No dashboard action needed/found.");
+        }
+
         // ==================== STAGE 1: IMAGE GENERATION ====================
         console.log("\n========== STAGE 1: IMAGE GENERATION ==========\n");
-
-        // 0. CHECK START STATE (Dashboard vs Workspace)
-        console.log("👀 Checking start state...");
-
-        // Try to find "New Project" button (usually on Dashboard)
-        const dashboardButton = await clickByText('โปรเจ็กต์ใหม่') ||
-            await clickByText('New project') ||
-            await clickByText('เริ่มใหม่') ||
-            await clickByText('Start new');
-
-        if (dashboardButton) {
-            console.log("✅ Clicked 'New Project' from dashboard");
-            await delay(3000); // Wait for workspace to load
-        }
 
         // 1.1 Switch to Image tab
         await switchToImageTab();
@@ -296,68 +341,54 @@ export const runTwoStagePipeline = async (config: PipelineConfig): Promise<{
         await uploadSingleImage(config.productImage, 2);
         await delay(1500);
 
-        // 1.4 Fill prompt and generate (USE SIMPLE 'create a prompt' HERE)
-        console.log("📝 Filling IMAGE prompt (Simple)...");
+        // 1.4 Fill prompt and generate
+        console.log("📝 Filling IMAGE prompt...");
         await fillPromptAndGenerate(config.imagePrompt);
         await delay(2000);
 
-        // 1.5 Wait for image generation to complete
+        // 1.5 Wait for image generation
         const genComplete = await waitForGenerationComplete(180000);
         if (!genComplete) {
             return { success: false, error: "Image generation timeout" };
         }
 
-        // 1.6 Click on the generated image to open detail view
+        // 1.6 Click on the generated image
         await clickOnGeneratedImage();
         await delay(1500);
 
         // ==================== TRANSITION TO VIDEO ====================
         console.log("\n========== TRANSITIONING TO VIDEO ==========\n");
 
-        // 1.7 Click "เพิ่มไปยังพรอมต์" (Add to Prompt)
+        // 1.7 Click "Add to Prompt" and "Video Composition"
         console.log("📌 Clicking 'Add to Prompt'...");
-        const addedToPrompt = await clickByText('เพิ่มไปยังพรอมต์');
-        if (!addedToPrompt) {
-            console.warn("⚠️ 'Add to Prompt' not found, trying alternative...");
-        }
+        await clickByText('เพิ่มไปยังพรอมต์');
         await delay(1500);
 
-        // 1.8 Click "ส่วนผสมในวิดีโอ" (Composition in Video)
-        console.log("🎬 Clicking 'ส่วนผสมในวิดีโอ'...");
-        const switchedToVideo = await clickByText('ส่วนผสมในวิดีโอ');
-        if (!switchedToVideo) {
-            // Try English version or alternative
-            await clickByText('Video composition');
+        console.log("🎬 Clicking 'Composition in Video'...");
+        const switchedToVideo = await clickByText('ส่วนผสมในวิดีโอ') ||
+            await clickByText('Video composition') ||
             await clickByText('วิดีโอ');
-        }
         await delay(2000);
 
         // ==================== STAGE 2: VIDEO GENERATION ====================
         console.log("\n========== STAGE 2: VIDEO GENERATION ==========\n");
 
-        // 2.1 Fill video prompt from NetFlow
-        console.log("📝 Filling video prompt from NetFlow...");
+        // 2.1 Fill video prompt
+        console.log("📝 Filling video prompt...");
         await fillPromptAndGenerate(config.videoPrompt);
         await delay(2000);
 
-        // 2.2 Wait for video generation
+        // 2.2 Wait for video
         console.log("⏳ Video generation started...");
         const videoUrl = await waitForVideoComplete(300000);
 
         if (!videoUrl) {
-            return {
-                success: false,
-                error: "Video generation timeout"
-            };
+            return { success: false, error: "Video generation timeout" };
         }
 
         console.log("\n🎉🎉🎉 PIPELINE COMPLETE! 🎉🎉🎉\n");
-        console.log("Video URL:", videoUrl.substring(0, 100));
 
-        return {
-            success: true,
-            videoUrl
-        };
+        return { success: true, videoUrl };
 
     } catch (error: any) {
         console.error("❌ Pipeline error:", error);
