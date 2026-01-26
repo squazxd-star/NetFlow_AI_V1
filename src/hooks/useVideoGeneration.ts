@@ -152,7 +152,8 @@ export const useVideoGeneration = () => {
 
                 // Advanced Video Settings (if image provided)
                 userImage: data.userImage || undefined,
-                prompt: data.aiPrompt || `Create a viral TikTok video for ${data.productName}`,
+                characterImage: data.characterImage || undefined,
+                prompt: data.aiPrompt || `Professional video of a ${data.gender || "person"} (${data.ageRange || "young"}) in ${data.background || "studio"} setting, holding ${data.productName}, ${data.expression || "happy"} expression, ${data.style || "cinematic"} style, high quality, 4k`,
                 loopCount: data.loopCount || 1,
                 concatenate: data.concatenate || false
             };
@@ -167,7 +168,9 @@ export const useVideoGeneration = () => {
                 data: {
                     script: serviceResult.script,
                     videoUrl: serviceResult.videoUrl,
-                    audioUrl: serviceResult.audioUrl
+                    audioUrl: serviceResult.audioUrl,
+                    generatedPrompt: serviceResult.generatedPrompt,
+                    imageUrl: serviceResult.imageUrl
                 }
             };
 

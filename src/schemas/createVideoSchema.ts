@@ -68,10 +68,10 @@ export type CreateVideoFormData = z.infer<typeof createVideoSchema>;
 
 // Default values for useForm
 export const createVideoDefaultValues: CreateVideoFormData = {
-    productId: "DEMO-001",
-    productName: "Future Warrior Model X",
+    productId: "",
+    productName: "",
     useAiScript: true,
-    aiPrompt: "A futuristic cyberpunk warrior in neon armor, high detail, 8k resolution, cinematic lighting",
+    aiPrompt: "",
     saleStyle: "storytelling",
     language: "th-central",
     voiceTone: "energetic",
@@ -97,6 +97,6 @@ export const createVideoDefaultValues: CreateVideoFormData = {
     autoPostTikTok: true,
     autoPostYoutube: false,
     smartLoop: true,
-    mustUseKeywords: "Cyberpunk, Neon, Future",
-    avoidKeywords: "blur, low quality",
+    mustUseKeywords: "",
+    avoidKeywords: "",
 };

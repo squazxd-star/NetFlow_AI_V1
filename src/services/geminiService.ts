@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { generateNanoImage } from "./imageGenService";
 import { stitchVideos } from "./videoProcessingService";
-import { AdvancedVideoRequest } from "../types/netflow";
+import { AdvancedVideoRequest, ScriptRequest } from "../types/netflow";
 import { getApiKey } from "./storageService";
 
 // Wrapper to get client instance dynamically
@@ -11,41 +11,13 @@ const getGenAI = async () => {
     return new GoogleGenerativeAI(key);
 };
 
-// Extended interface for script generation input - includes ALL form fields
-export interface ScriptRequest {
-    // Product Info
-    productName: string;
-    productDescription?: string;
-    productId?: string;
-    mustUseKeywords?: string;
-    avoidKeywords?: string;
-
-    // Script Settings
-    style: string;          // saleStyle: hard, soft, educational, storytelling
-    tone: string;           // voiceTone: energetic, calm, friendly, professional
-    language: string;       // th-central, th-north, th-south, th-isan, en
-    template?: string;      // product-review, brainrot-product, etc.
-    hookText?: string;      // Opening hook
-    ctaText?: string;       // Call to action
-
-    // Character Settings
-    gender?: string;        // male, female, any
-    ageRange?: string;      // teen, young-adult, adult, etc.
-    personality?: string;   // cheerful, calm, professional, playful, mysterious
-    background?: string;    // studio, outdoor, home, office, abstract
-
-    // Video Settings
-    expression?: string;    // happy, excited, neutral, serious
-    movement?: string;      // static, minimal, active
-    aspectRatio?: string;   // 9:16, 16:9, 1:1
-    videoDuration?: string; // short, medium, long
-}
-
 // Interface for the result
 export interface ScriptResult {
     script: string;
     audioUrl?: string;
     videoUrl?: string;
+    generatedPrompt?: string; // For debugging
+    imageUrl?: string; // Fallback image from DALL-E
 }
 
 /**
@@ -53,87 +25,159 @@ export interface ScriptResult {
  */
 const buildFullPrompt = (data: ScriptRequest): string => {
     const templateDescriptions: Record<string, string> = {
-        "product-review": "Product review format with honest opinions and recommendations",
-        "brainrot-product": "Viral brainrot style with fast cuts and memes mixed with product promotion",
-        "unboxing": "Unboxing experience showing first impressions",
-        "comparison": "Before/after or vs competitor comparison",
-        "testimonial": "Customer testimonial style",
-        "flash-sale": "Urgency-driven flash sale promotion",
-        "tutorial": "How-to tutorial teaching product usage",
-        "lifestyle": "Lifestyle integration showing product in daily life",
-        "trending": "Following current TikTok trends",
-        "mini-drama": "Short drama/storytelling format",
-        "before-after": "Transformation before and after using product"
+        "product-review": "รีวิวสินค้าแบบจริงใจ (Honest Review) เน้นผลลัพธ์จริงๆ ไม่ขายฝัน",
+        "brainrot-product": "สไตล์ Brainrot: ใช้ศัพท์วัยรุ่น (Gen Z Slang), ตัดไว, กวนประสาท, ตลกหน้าตาย, ไม่เน้นสาระแต่เน้นฮา",
+        "unboxing": "แกะกล่องโชว์ของ: ตื่นเต้นกับ Packaging, สัมผัสแรก, ความรู้สึกตอนเห็นของ",
+        "comparison": "เปรียบเทียบชัดเจน: เทียบกับของเก่า หรือ แบรนด์อื่น (ไม่ต้องเอ่ยชื่อ) ให้เห็นว่าอันนี้ดีกว่ายังไง",
+        "testimonial": "เล่าประสบการณ์ผู้ใช้จริง: เหมือนเพื่อนมาเล่าให้ฟังว่าชีวิตเปลี่ยนไปยังไง",
+        "flash-sale": "Flash Sale: เร่งรีบ, ดุดัน, หมดแล้วหมดเลย, ต้องซื้อเดี๋ยวนี้",
+        "tutorial": "How-to: สอนใช้แบบ Step-by-step, เข้าใจง่าย, ทำตามได้เลย",
+        "lifestyle": "Vlog/Lifestyle: ถ่ายทอดการใช้งานสินค้าในชีวิตประจำวันแบบเนียนๆ",
+        "trending": "เกาะกระแส: ใช้เพลงฮิต หรือมุกที่กำลังดังใน TikTok ตอนนี้",
+        "mini-drama": "ละครสั้น: มีพล็อตเรื่องหักมุม, ดราม่า, หรือตลกคาเฟ่",
+        "before-after": "โชว์ผลลัพธ์ Before/After: ให้เห็นความแตกต่างชัดเจนที่สุด"
     };
 
     const toneDescriptions: Record<string, string> = {
-        "energetic": "High energy, enthusiastic, exciting",
-        "calm": "Relaxed, soothing, trustworthy",
-        "friendly": "Warm, conversational, relatable",
-        "professional": "Expert, authoritative, credible"
+        "energetic": "High Energy: ตื่นเต้น, เสียงดังฟังชัด, กระตือรือร้นสุดขีด (เหมือนพิธีกรทีวีไดเร็ค)",
+        "calm": "ASMR/Calm: เสียงนุ่ม, ทุ้ม, สบายหู, ชวนง่วงแบบผ่อนคลาย",
+        "friendly": "Best Friend: เหมือนเพื่อนสนิทคุยกัน, ใช้กู-มึงได้ (ถ้าเหมาะสม), หรือ เธอ-ฉัน",
+        "professional": "Expert/Professional: น่าเชื่อถือ, ข้อมูลแน่น, ดูเป็นผู้เชี่ยวชาญ"
     };
 
     const styleDescriptions: Record<string, string> = {
-        "hard": "aggressive hard-sell with strong urgency",
-        "soft": "gentle persuasion with subtle nudges",
-        "educational": "informative and teaching-focused",
-        "storytelling": "narrative-driven emotional connection"
+        "hard": "Hard Sell: ขายตรงๆ ไม่อ้อมค้อม เน้นโปรโมชั่นและความคุ้มค่า",
+        "soft": "Soft Sell: ป้ายยาแบบเนียนๆ เล่าเรื่องก่อนแล้วค่อยตบเข้าสินค้าตอนจบ",
+        "educational": "Educational: เน้นให้ความรู้ สาระแน่นๆ สินค้าเป็นแค่ตัวประกอบ",
+        "storytelling": "Storytelling: เล่าเรื่องราวที่มีจุดเริ่มต้น จุดพีค และจุดจบ (สินค้าคือฮีโร่)"
     };
 
     let prompt = `
-You are an expert TikTok script writer specializing in viral product videos for Thai audiences.
+You are an expert TikTok/Reels script writer representing a world-class creative agency.
+Your goal is to write a script that feels "Premium", "Authentic", and "High-Class".
+
+## CRITICAL INSTRUCTIONS (MUST FOLLOW)
+1. **Language Style**: Use **"Spoken Thai" (ภาษาพูด)**. Avoid formal/academic Thai (ภาษาเขียน).
+   - BAD: "มีความสุข", "รับประทาน", "จำหน่าย"
+   - GOOD: "ฟิน", "กิน", "ขาย", "จึ้งมาก", "ของมันต้องมี"
+   - Use slang naturally (e.g., Fin, Pang, Jeung) to sound viral and relatable.
+
+2. **Visual Description**: When describing scenarios (Proof), focus on **EMOTION & RESULT**.
+   - BAD: "In this image..."
+   - GOOD: "Look at that face! Pure joy!"
+
+3. **Product Name**: 
+   - Use the **EXACT Brand Name** (e.g. "Dior Sauvage", "Whiskas") derived from the input.
+   - **MANDATORY**: You MUST mention the Brand Name in the **[HOOK]** and again in the **[CTA]**.
+   - Do NOT just say "this perfume" or "this food". Say the NAME.
+
+4. **Structure**: 
+   - **HOOk**: Start with a scroll-stopping question or statement + BRAND NAME.
+   - **BODY**: Focus on the feeling/benefit.
+   - **CLOSING**: Strong Call to Action + BRAND NAME.
 
 ## PRODUCT INFORMATION
-- Product Name: ${data.productName}
-${data.productDescription ? `- Description: ${data.productDescription}` : ""}
+- Product Name: ${data.productName || "(Extract name from description below)"}
+${data.productDescription ? `- Description / Visual Context from AI Brain: ${data.productDescription}` : ""}
 ${data.mustUseKeywords ? `- Must Include Keywords: ${data.mustUseKeywords}` : ""}
 ${data.avoidKeywords ? `- Avoid These Words: ${data.avoidKeywords}` : ""}
 
-## SCRIPT STYLE
+## SCRIPT SETTINGS
 - Template: ${data.template || "product-review"} (${templateDescriptions[data.template || "product-review"] || ""})
 - Sales Approach: ${data.style} (${styleDescriptions[data.style] || ""})
 - Voice Tone: ${data.tone} (${toneDescriptions[data.tone] || ""})
-- Language: ${data.language === "th-central" ? "Thai (Central dialect)" :
-            data.language === "th-north" ? "Thai (Northern dialect)" :
-                data.language === "th-south" ? "Thai (Southern dialect)" :
-                    data.language === "th-isan" ? "Thai (Isan/Northeastern dialect)" : "English"}
-
-## PRESENTER CHARACTER
-- Gender: ${data.gender || "female"}
-- Age Range: ${data.ageRange || "young-adult"}
-- Personality: ${data.personality || "cheerful"}
-- Expression: ${data.expression || "happy"}
-
-## VIDEO SPECIFICATIONS
-- Background Setting: ${data.background || "studio"}
-- Camera Movement: ${data.movement || "minimal"}
-- Aspect Ratio: ${data.aspectRatio || "9:16"} (${data.aspectRatio === "9:16" ? "TikTok vertical" : data.aspectRatio === "16:9" ? "YouTube horizontal" : "Instagram square"})
-- Duration: ${data.videoDuration === "short" ? "15-30 seconds" : data.videoDuration === "medium" ? "30-60 seconds" : "1-3 minutes"}
-
-## SCRIPT STRUCTURE
-${data.hookText ? `- Opening Hook: "${data.hookText}"` : "- Create an attention-grabbing hook"}
-${data.ctaText ? `- Call to Action: "${data.ctaText}"` : "- Include a compelling call to action"}
+- Language: ${data.language === "th-central" ? "Thai (Central) - Use modern, natural Thai slang where appropriate" : "English"}
 
 ## OUTPUT REQUIREMENTS
-Generate a complete TikTok script in ${data.language?.startsWith("th") ? "Thai" : "English"} with:
-1. [HOOK] - Attention-grabbing opening (2-3 seconds)
-2. [PROBLEM] - Relate to audience pain point
-3. [SOLUTION] - Introduce the product as the answer
-4. [PROOF] - Benefits, features, or testimonial
-5. [CTA] - Clear call to action
+Generate a complete TikTok script with:
+1. [HOOK]
+2. [PROBLEM]
+3. [SOLUTION]
+4. [PROOF]
+5. [CTA]
 
-Output ONLY the script dialogue. No metadata, timestamps, or stage directions.
-Make it sound natural, conversational, and viral-worthy.
+Output ONLY the script dialogue. No metadata.
 `;
 
     return prompt;
 };
 
 /**
- * Helper to generate using OpenAI with full form data
+ * Uses GPT-4o Vision to analyze the product image (and optional character) to generate a highly detailed prompt
  */
-const generateWithOpenAI = async (apiKey: string, data: ScriptRequest): Promise<string> => {
-    console.log("🤖 Generating script with OpenAI (GPT-4o-mini)...");
+const generateVisualPrompt = async (apiKey: string, imageBase64: string, productName: string, style: string, characterImage?: string): Promise<string> => {
+    console.log("👁️ Analyzing Product (and Character) with GPT-4o Vision...");
+
+    try {
+        const messagesContent: any[] = [
+            {
+                type: "text",
+                text: `Analyze these images. 
+                Image 1: The Product.
+                ${characterImage ? "Image 2: The Character/Presenter." : ""}
+                
+                1. Identify the EXACT Product Name / Brand from the text on the package (if any).
+                2. Create a HIGHLY DETAILED, CINEMATIC video generation prompt for a single **8-second continuous shot**.
+                   ${characterImage ? "- **INTEGRATION**: Describe the Character (Image 2) interacting with the Product (Image 1) naturally." : ""}
+                   - Focus on **CAMERA MOVEMENT** (e.g., "Slow smooth pan", "Rack focus", "Dolly in").
+                   - Describe **LIGHTING & ATMOSPHERE** (e.g., "Golden hour", "Neon rim light", "Soft diffusion").
+                   - Describe **ACTION** (e.g., "Smoke swirling", "Water droplets falling", "Fabric flowing").
+                   - **DO NOT** use "cuts" or "scenes". Write one fluid visual description that lasts 8 seconds.
+                   - Style: ${style}.
+                
+                Output format strictly:
+                Name: [Identified Name or "Unknown"]
+                Prompt: [Visual Description... (in English)]`
+            },
+            {
+                type: "image_url",
+                image_url: { url: imageBase64 }
+            }
+        ];
+
+        if (characterImage) {
+            messagesContent.push({
+                type: "image_url",
+                image_url: { url: characterImage }
+            });
+        }
+
+        const response = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: "gpt-4o",
+                messages: [
+                    {
+                        role: "user",
+                        content: messagesContent
+                    }
+                ],
+                max_tokens: 350
+            })
+        });
+
+        const json = await response.json();
+        if (json.error || !json.choices) {
+            console.warn("Vision API Error:", json.error);
+            return `Name: Unknown\nPrompt: Cinematic shot of ${productName || "product"}, ${style} style, professional lighting`;
+        }
+        return json.choices[0].message.content;
+
+    } catch (e) {
+        console.error("Vision Analysis Failed:", e);
+        return `Name: Unknown\nPrompt: Cinematic shot of ${productName || "product"}, ${style} style, professional lighting`;
+    }
+};
+
+/**
+ * Helper to generate using OpenAI with full form data (GPT-4o)
+ */
+const generateWithOpenAI = async (apiKey: string, data: ScriptRequest): Promise<ScriptResult> => {
+    console.log("🤖 Generating script with OpenAI (GPT-4o)...");
     const prompt = buildFullPrompt(data);
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -143,12 +187,12 @@ const generateWithOpenAI = async (apiKey: string, data: ScriptRequest): Promise<
             "Authorization": `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-            model: "gpt-4o-mini", // Cost efficient and fast
+            model: "gpt-4o",
             messages: [
                 { role: "system", content: "You are a professional TikTok script writer." },
                 { role: "user", content: prompt }
             ],
-            temperature: 0.7
+            temperature: 0.8
         })
     });
 
@@ -158,7 +202,10 @@ const generateWithOpenAI = async (apiKey: string, data: ScriptRequest): Promise<
     }
 
     const json = await response.json();
-    return json.choices[0].message.content || "";
+    return {
+        script: json.choices[0].message.content || "",
+        generatedPrompt: prompt
+    };
 };
 
 /**
@@ -166,7 +213,7 @@ const generateWithOpenAI = async (apiKey: string, data: ScriptRequest): Promise<
  */
 export const generateVideoScript = async (
     data: ScriptRequest
-): Promise<string> => {
+): Promise<ScriptResult> => {
     // Check which AI Provider user selected (default: OpenAI)
     const aiProvider = localStorage.getItem("netflow_ai_provider") || "openai";
     console.log(`🤖 Using AI Provider: ${aiProvider.toUpperCase()}`);
@@ -182,26 +229,32 @@ export const generateVideoScript = async (
                 throw new Error(`OpenAI Error: ${error.message}`);
             }
         } else {
+            // If key not found, fallback to Gemini?? 
+            // User wants BEST. If no key, maybe Error is better than mediocre fallback. 
+            // But existing behavior was Error.
             throw new Error("OpenAI API Key ไม่พบ! กรุณาใส่ Key ใน Settings");
         }
     }
 
     // 2. If Gemini is selected
     if (aiProvider === "gemini") {
-        const tryGenerate = async (modelName: string) => {
+        const tryGenerate = async (modelName: string): Promise<ScriptResult> => {
             console.log(`🔷 Attempting script generation with Gemini model: ${modelName}`);
             const genAI = await getGenAI();
             const model = genAI.getGenerativeModel({ model: modelName });
             const prompt = buildFullPrompt(data);
             const result = await model.generateContent(prompt);
             const response = await result.response;
-            return response.text();
+            return {
+                script: response.text(),
+                generatedPrompt: prompt
+            };
         };
 
         try {
-            return await tryGenerate("gemini-2.0-flash");
+            return await tryGenerate("gemini-1.5-flash"); // Use 1.5 Flash (latest fast)
         } catch (error: any) {
-            console.warn("gemini-2.0-flash failed, trying fallback to gemini-pro...", error.message);
+            console.warn("Gemini Flash failed, trying Pro...", error.message);
             try {
                 return await tryGenerate("gemini-pro");
             } catch (fallbackError: any) {
@@ -211,8 +264,7 @@ export const generateVideoScript = async (
         }
     }
 
-    // Should not reach here, but just in case
-    throw new Error("ไม่พบ AI Provider ที่ถูกต้อง กรุณาเลือกใน Settings");
+    throw new Error("ไม่พบ AI Provider ที่ถูกต้อง");
 };
 
 /**
@@ -225,18 +277,15 @@ export const generateSpeech = async (text: string): Promise<string | null> => {
         if (!apiKey) return null;
 
         const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
-
         const requestBody = {
-            input: { text: text },
-            voice: { languageCode: "th-TH", name: "th-TH-Neural2-C" }, // Defaulting to Thai
+            input: { text },
+            voice: { languageCode: "th-TH", ssmlGender: "FEMALE" },
             audioConfig: { audioEncoding: "MP3" },
         };
 
         const response = await fetch(url, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(requestBody),
         });
 
@@ -271,142 +320,150 @@ export const generateVideo = async (script: string): Promise<string | null> => {
     return null;
 };
 
+/**
+ * RPA Binding: Triggers the Service Worker to run Google VideoFX automation
+ */
+const triggerRPAGeneration = (prompt: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        // Check if running as extension
+        if (typeof chrome === "undefined" || !chrome.runtime) {
+            console.warn("RPA requires Chrome Extension environment. Returning mock.");
+            setTimeout(() => resolve("https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"), 3000);
+            return;
+        }
+
+        console.log("🚀 Triggering RPA Flow with prompt:", prompt);
+
+        // 1. Send Start Command
+        chrome.runtime.sendMessage({
+            type: "START_VIDEO_GENERATION",
+            payload: { prompt }
+        }, (response) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error("Extension Error: " + chrome.runtime.lastError.message));
+                return;
+            }
+            console.log("RPA Started:", response);
+        });
+
+        // 2. Listen for Completion (One-time listener)
+        const listener = (message: any) => {
+            if (message.type === "VIDEO_GENERATION_COMPLETE") {
+                console.log("✅ RPA Video Received:", message.videoUrl);
+                cleanup();
+                resolve(message.videoUrl);
+            } else if (message.type === "VIDEO_GENERATION_ERROR") {
+                console.error("❌ RPA Error:", message.error);
+                cleanup();
+                reject(new Error(message.error));
+            }
+        };
+
+        // Cleanup listener to avoid leaks
+        const cleanup = () => {
+            chrome.runtime.onMessage.removeListener(listener);
+        };
+
+        chrome.runtime.onMessage.addListener(listener);
+
+        // Timeout (5 minutes max)
+        setTimeout(() => {
+            cleanup();
+            reject(new Error("RPA Timeout (5 mins)"));
+        }, 5 * 60 * 1000);
+    });
+};
+
 // Orchestrator function to run the full flow
 export const runFullWorkflow = async (data: ScriptRequest | AdvancedVideoRequest): Promise<ScriptResult> => {
     console.log("Starting Workflow...", data);
-
-    // SIMULATION MODE REMOVED - Always use real API
 
     try {
         let script = "";
         let audioUrl: string | undefined = undefined;
         let videoUrl: string | undefined = undefined;
+        let imageUrl: string | undefined = undefined;
+        let generatedPrompt: string | undefined = undefined;
 
-        // 1. Script & Audio Generation (Common Step)
-        if ('productName' in data) {
-            script = await generateVideoScript(data as ScriptRequest);
+        // Cast to AdvancedVideoRequest safely
+        let advData = data as any;
+
+        // 1. Vision Analysis (Brain 🧠)
+        if (advData.userImage) {
+            console.log("🧠 Starting Smart Vision Analysis (GPT-4o Vision)...");
+            // Note: In real extension, we might need a persistent key or proxy. 
+            // Here we reuse getApiKey('openai') logic.
+            const apiKey = await getApiKey('openai');
+            if (apiKey) {
+                const visionRes = await generateVisualPrompt(apiKey, advData.userImage, advData.productName, advData.style, advData.characterImage);
+                if (visionRes) {
+                    // Parse logic: "Name: [xxx]\nPrompt: [yyy]"
+                    const nameMatch = visionRes.match(/Name:\s*(.+)/i);
+                    const promptMatch = visionRes.match(/Prompt:\s*([\s\S]+)/i);
+
+                    const extractedName = nameMatch ? nameMatch[1].trim() : "Unknown";
+                    const extractedPrompt = promptMatch ? promptMatch[1].trim() : visionRes; // Fallback to whole text
+
+                    console.log(`✅ Smart Vision found: Name=[${extractedName}]`);
+
+                    // Update Data
+                    if (extractedName && extractedName !== "Unknown" && (!advData.productName || advData.productName === "สินค้าทั่วไป")) {
+                        advData.productName = extractedName;
+                    }
+                    advData.prompt = extractedPrompt;
+
+                    // Inject into Product Description for Script Writer (Context)
+                    if (!advData.productDescription) advData.productDescription = "";
+                    advData.productDescription += `\n\n[Visual Details]: ${extractedPrompt}`;
+
+                    generatedPrompt = `[Smart Vision]: ${visionRes}`;
+                }
+            }
+        }
+
+        let visualPrompt = advData.prompt || advData.productName;
+
+        // 2. Script & Audio Generation (Brain 🧠)
+        // Run if we have a name OR image OR minimal context
+        if (advData.productName || advData.userImage || advData.productDescription) {
+            console.log("📝 Generating Script for:", advData.productName || "Unknown Product");
+            const result = await generateVideoScript(advData);
+            script = result.script;
+            if (!generatedPrompt) generatedPrompt = result.generatedPrompt;
+            else generatedPrompt += `\n\n[Script Prompt]: ${result.generatedPrompt}`;
+
             console.log("Script generated:", script);
             audioUrl = (await generateSpeech(script)) || undefined;
         }
 
-        // 2. Advanced Video Pipeline (Nano Banana + Veo + Stitching)
-        if ('userImage' in data && (data as AdvancedVideoRequest).userImage) {
-            const advData = data as AdvancedVideoRequest;
-            console.log("Entering Advanced Video Pipeline...");
+        // 3. Visual Generation (RPA Automaton 🤖)
+        // Only if userImage or Prompt is present
+        if (visualPrompt) {
+            console.log("🎥 Starting Indirect Video Generation (RPA)...");
 
-            // Step 2.1: Nano Banana Image Generation
-            // If user provided an image, we use it as reference to generate a styled image.
-            // If prompt is provided, we use it.
-            const generatedImage = await generateNanoImage(advData.prompt, advData.userImage);
+            try {
+                // Trigger the hidden "Ghost Browser" to create video
+                videoUrl = await triggerRPAGeneration(visualPrompt);
 
-            if (generatedImage) {
-                console.log("Nano Image Generated:", generatedImage);
-                // Step 2.2: Loop Video Generation (Real Mode: Veo 3.0)
-                const clipUrls: string[] = [];
-                const loopCount = advData.loopCount || 1;
-
-                // Helper to generate a single clip with Veo 3.0 LRO
-                const generateVeoClip = async (index: number) => {
-                    console.log(`[Veo] Starting generation for Clip ${index + 1}...`);
-                    try {
-                        // 1. Start Long Running Operation
-                        const apiKey = await getApiKey();
-                        const modelName = "veo-3.0-generate-001";
-                        const startUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:predictLongRunning?key=${apiKey}`;
-
-                        // Clean base64 for API (remove header)
-                        const b64Data = generatedImage.split(',')[1] || generatedImage;
-
-                        const startResp = await fetch(startUrl, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                instances: [{
-                                    // Combine prompt with script context if possible, or just use the visual prompt
-                                    prompt: `${advData.prompt} (Clip ${index + 1})`,
-                                    image: {
-                                        bytesBase64Encoded: b64Data
-                                    }
-                                }]
-                            })
-                        });
-
-                        if (!startResp.ok) throw new Error(`Veo Start Failed: ${startResp.statusText}`);
-                        const opData = await startResp.json();
-                        const opName = opData.name; // "operations/..."
-                        console.log(`[Veo] Operation started: ${opName}. Polling...`);
-
-                        // 2. Poll until done
-                        let attempts = 0;
-                        while (attempts < 60) { // Timeout ~5 mins
-                            await new Promise(r => setTimeout(r, 5000)); // Poll every 5s
-                            attempts++;
-
-                            console.log(`[Veo] Polling Clip ${index + 1}... attempt ${attempts}`);
-                            const currentKey = await getApiKey();
-                            const pollUrl = `https://generativelanguage.googleapis.com/v1beta/${opName}?key=${currentKey}`;
-                            const pollResp = await fetch(pollUrl);
-                            const pollData = await pollResp.json();
-
-                            console.log(`[Veo] Polling Clip ${index + 1}... status: ${pollData.done ? 'DONE' : 'PROCESSING'}`);
-
-                            if (pollData.done) {
-                                if (pollData.error) throw new Error(`Veo Operation Error: ${JSON.stringify(pollData.error)}`);
-
-                                // Extract video URL
-                                // Result structure depends on API version, usually usually found in 'response'
-                                // We'll log it to be sure on first run
-                                console.log("[Veo] Operation Result Data:", pollData.response);
-
-                                // Try to find the Video URI (might be GCS or File API)
-                                // Standard guess: pollData.response.videoUri or pollData.metadata...
-                                // Since we don't have exact schema, let's look for any 'uri' string or base64
-                                // If undefined, fallback to mock to not break flow during this critical demo
-                                const resultUri = pollData.response?.videoUri || pollData.response?.result?.videoUri;
-
-                                if (resultUri) return resultUri;
-
-                                // Specific fallback for "Demo Effect" if real API returns weird structure
-                                // But we return null if we really can't find it
-                                console.warn("[Veo] Finished but could not parse Video URI from response.");
-                                return null;
-                            }
-                        }
-                        throw new Error("Veo Generation Timed Out");
-
-                    } catch (e: any) {
-                        console.error(`[Veo] Error generating Clip ${index + 1}:`, e);
-                        // Fallback to mock if individual clip fails so we still get *something*
-                        return "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
-                    }
-                };
-
-                // Generate clips in parallel or serial? 
-                // Veo is expensive/intensive, better do serial to avoid Rate Limits
-                for (let i = 0; i < loopCount; i++) {
-                    const videoUrl = await generateVeoClip(i);
-                    if (videoUrl) clipUrls.push(videoUrl);
+                if (videoUrl) {
+                    console.log("🎉 Video Generated via RPA!");
                 }
-
-                // Step 2.3: Stitching
-                if (clipUrls.length > 1 && advData.concatenate) {
-                    console.log("Stitching videos...", clipUrls.length);
-                    const stitchedUrl = await stitchVideos(clipUrls);
-                    if (stitchedUrl) videoUrl = stitchedUrl;
-                } else if (clipUrls.length > 0) {
-                    videoUrl = clipUrls[0];
-                }
+            } catch (rpaError) {
+                console.error("RPA Generation Failed:", rpaError);
+                // No fallback to DALL-E (Indirect policy)
             }
         }
 
         return {
             script,
             audioUrl,
-            videoUrl
+            videoUrl,
+            imageUrl,
+            generatedPrompt
         };
 
     } catch (e) {
         console.error("Workflow Failed:", e);
         throw e;
     }
-}
+};

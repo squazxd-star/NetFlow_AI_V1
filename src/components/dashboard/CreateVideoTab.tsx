@@ -5,7 +5,7 @@ import {
     Plus, Terminal, Wand2, User, Settings, Play, Infinity as InfinityIcon,
     ShoppingBag, ChevronDown, Youtube, FileText, Sparkles,
     Image, Video, Clock, RefreshCw, Check, Palette,
-    Pencil, Stars, Link, Mic, Globe, Save
+    Pencil, Stars, Link, Mic, Globe, Save, Download
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -78,6 +78,7 @@ const CreateVideoTab = () => {
 
     const { generate, isLoading, result, downloadVideo } = useVideoGeneration();
     const hasVideo = !!result?.data?.videoUrl;
+    const hasImage = !!result?.data?.imageUrl;
 
     const { register, control, watch, setValue, getValues } = form;
 
@@ -100,6 +101,7 @@ const CreateVideoTab = () => {
 
     // UI State (not form data - stays as useState)
     const [characterImages, setCharacterImages] = useState<(string | null)[]>([null, null]);
+    const [productImages, setProductImages] = useState<(string | null)[]>([null, null]);
     const [aiScriptOpen, setAiScriptOpen] = useState(true);
     const [characterOpen, setCharacterOpen] = useState(true);
     const [productDataOpen, setProductDataOpen] = useState(true);
@@ -111,8 +113,8 @@ const CreateVideoTab = () => {
 
     const logs = [
         "ระบบพร้อมทำงาน...",
-        "กำลังรีโหลดโมเดล AI...",
-        "เชื่อมต่อระบบสำเร็จ",
+        ...(isLoading ? ["⏳ กำลังเชื่อมต่อ OpenAI/Gemini...", "🔄 กำลังสร้างสคริปต์และวิดีโอ..."] : []),
+        ...(result ? ["✅ สร้างสำเร็จ! ผลลัพธ์แสดงอยู่ด้านล่าง"] : []),
     ];
 
     const handleCharacterUpload = (index: number) => {
@@ -127,6 +129,25 @@ const CreateVideoTab = () => {
                     const newImages = [...characterImages];
                     newImages[index] = e.target?.result as string;
                     setCharacterImages(newImages);
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+        input.click();
+    };
+
+    const handleProductImageUpload = (index: number) => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.onchange = (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const newImages = [...productImages];
+                    newImages[index] = e.target?.result as string;
+                    setProductImages(newImages);
                 };
                 reader.readAsDataURL(file);
             }
@@ -158,20 +179,22 @@ const CreateVideoTab = () => {
         console.log("Form data ready for video generation:", data);
 
         // Prepare data for advanced workflow
-        // If image uploaded, use the first one as reference
-        const userImage = characterImages[0] || undefined;
+        const userImage = productImages[0] || undefined; // Product Image priority
+        const characterImage = characterImages[0] || undefined; // Character Image
+
         // Use clipCount as loop count (parse if string)
         const loopCount = typeof data.clipCount === 'number' ? data.clipCount : 1;
 
-        // Use smartLoop toggle as "concatenate" trigger for now, or just default to true if loop > 1
+        // Use smartLoop toggle as "concatenate" trigger
         const concatenate = data.smartLoop;
 
         await generate({
             type: "video-generation",
             ...data,
-            userImage,   // Pass the base64 image
-            loopCount,   // Pass number of clips
-            concatenate: concatenate // Pass stitch preference
+            userImage,       // Base64 Product Image
+            characterImage,  // Base64 Character Image
+            loopCount,
+            concatenate
         });
     };
 
@@ -745,13 +768,20 @@ const CreateVideoTab = () => {
                                 รูปภาพ (สูงสุด 2)
                             </label>
                             <div className="grid grid-cols-2 gap-3">
-                                {[0, 1].map((index) => (
+                                {productImages.map((img, index) => (
                                     <button
                                         key={index}
-                                        className="aspect-square rounded-xl border-2 border-dashed border-border bg-muted/30 flex flex-col items-center justify-center gap-2 hover:border-neon-red/50 hover:bg-neon-red/5 transition-all duration-200"
+                                        onClick={() => handleProductImageUpload(index)}
+                                        className="aspect-square rounded-xl border-2 border-dashed border-border bg-muted/30 flex flex-col items-center justify-center gap-2 hover:border-neon-red/50 hover:bg-neon-red/5 transition-all duration-200 overflow-hidden"
                                     >
-                                        <Plus className="w-6 h-6 text-muted-foreground" />
-                                        <span className="text-[10px] text-muted-foreground">คลิกเพื่อเลือก</span>
+                                        {img ? (
+                                            <img src={img} alt={`Product ${index + 1}`} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <>
+                                                <Plus className="w-6 h-6 text-muted-foreground" />
+                                                <span className="text-[10px] text-muted-foreground">คลิกเพื่อเลือก</span>
+                                            </>
+                                        )}
                                     </button>
                                 ))}
                             </div>
@@ -991,6 +1021,77 @@ const CreateVideoTab = () => {
                     )}
                 </span>
             </button>
+
+            {/* Result Section */}
+            {result && (
+                <section className="glass-card overflow-hidden border border-green-500/30">
+                    <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-green-500/10">
+                        <Sparkles className="w-4 h-4 text-green-500" />
+                        <span className="text-xs font-medium text-green-500">ผลลัพธ์การสร้าง (Result)</span>
+                    </div>
+
+                    <div className="p-4 space-y-4">
+                        {/* Script Display */}
+                        <div>
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="text-xs font-semibold text-foreground">📜 สคริปต์ที่ได้ (Script)</label>
+                                <span className="text-[10px] text-muted-foreground">OpenAI/Gemini</span>
+                            </div>
+                            <div className="p-3 bg-muted/50 rounded-lg text-sm whitespace-pre-wrap max-h-60 overflow-y-auto border border-border font-sans">
+                                {result.data?.script || "No script generated"}
+                            </div>
+                        </div>
+
+                        {/* Debug Prompt Display */}
+                        {result.data?.generatedPrompt && (
+                            <div className="border-t border-border pt-4">
+                                <label className="text-[10px] font-semibold text-muted-foreground mb-2 flex items-center gap-1">
+                                    <Terminal className="w-3 h-3" />
+                                    Debug Prompt (ข้อมูลที่ส่งไป AI):
+                                </label>
+                                <div className="p-2 bg-black/40 rounded text-[10px] font-mono text-muted-foreground whitespace-pre-wrap h-24 overflow-y-auto">
+                                    {result.data.generatedPrompt}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Visual Display (Video or Image) */}
+                        {(hasVideo || hasImage) && (
+                            <div className="border-t border-border pt-4">
+                                <label className="text-xs font-semibold text-foreground mb-2 block">
+                                    {hasVideo ? "🎬 วิดีโอตัวอย่าง" : "🖼️ รูปภาพตัวอย่าง (DALL-E 3)"}
+                                </label>
+
+                                {hasVideo ? (
+                                    <>
+                                        <video controls src={result.data.videoUrl} className="w-full rounded-lg shadow-lg bg-black aspect-[9/16]" />
+                                        <button
+                                            onClick={downloadVideo}
+                                            className="mt-2 w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium flex items-center justify-center gap-2 transition-colors"
+                                        >
+                                            <Download className="w-3 h-3" /> ดาวน์โหลดวิดีโอ
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <img src={result.data.imageUrl} alt="Generated Visual" className="w-full rounded-lg shadow-lg bg-black aspect-[9/16] object-cover" />
+                                        <a
+                                            href={result.data.imageUrl}
+                                            download={`netflow-ai-generated-${Date.now()}.png`}
+                                            className="mt-2 w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium flex items-center justify-center gap-2 transition-colors"
+                                        >
+                                            <Download className="w-3 h-3" /> ดาวน์โหลดรูปภาพ
+                                        </a>
+                                        <p className="text-[10px] text-muted-foreground mt-2 text-center">
+                                            ⚠️ หมายเหตุ: สร้างเป็นภาพแทนเนื่องจาก API Video ไม่พร้อมใช้งาน
+                                        </p>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
 
             {/* Console Log */}
             <section className="glass-card overflow-hidden">

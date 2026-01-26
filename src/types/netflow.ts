@@ -82,12 +82,50 @@ export interface VideoGenerationResponse {
     data?: any;
 }
 
-export interface AdvancedVideoRequest {
+export interface ScriptRequest {
+    // Product Info
     productName: string;
+    productDescription?: string;
+    productId?: string;
+    mustUseKeywords?: string;
+    avoidKeywords?: string;
+
+    // Script Settings
+    style: string;          // saleStyle
+    tone: string;           // voiceTone
+    language: string;       // th-central, etc.
+    template?: string;      // product-review, etc.
+    hookText?: string;
+    ctaText?: string;
+
+    // Character Settings
+    gender?: string;
+    ageRange?: string;
+    personality?: string;
+    background?: string;
+
+    // Video Settings
+    expression?: string;
+    movement?: string;
+    aspectRatio?: string;
+    videoDuration?: string;
+
+    // Legacy/Optional Compatibility
+    targetAudience?: string;
+    uniqueSellingPoint?: string;
+    promotion?: string;
+    length?: VideoDurationOption;
+    platform?: string;
+    hook?: string;
+    cta?: string;
+    hashtags?: string[];
+}
+
+export interface AdvancedVideoRequest extends ScriptRequest {
     prompt: string;
-    userImage?: string; // Base64 or Blob URL
-    style: string;
-    loopCount: number; // 1, 3, 5
+    userImage?: string;       // Product Image
+    characterImage?: string;  // Character/Persona Image
+    loopCount: number;
     concatenate: boolean;
 }
 

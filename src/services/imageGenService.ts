@@ -66,3 +66,41 @@ export const generateNanoImage = async (prompt: string, referenceImageBase64?: s
         return `https://source.unsplash.com/random/1024x1792/?${keywords}`;
     }
 };
+
+/**
+ * Service for DALL-E 3 (OpenAI) Image Generation
+ */
+export const generateDalleImage = async (prompt: string, apiKey: string): Promise<string | null> => {
+    try {
+        console.log("🎨 Generating DALL-E 3 Image...", { prompt });
+
+        const response = await fetch("https://api.openai.com/v1/images/generations", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: "dall-e-3",
+                prompt: prompt,
+                n: 1,
+                size: "1024x1792", // Portrait for TikTok
+                quality: "standard",
+                response_format: "b64_json"
+            })
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(`DALL-E Error: ${err.error?.message || response.statusText}`);
+        }
+
+        const data = await response.json();
+        const b64 = data.data[0].b64_json;
+        return `data:image/png;base64,${b64}`;
+
+    } catch (error: any) {
+        console.error("DALL-E 3 Gen Error:", error);
+        return null; // Return null so workflow can handle or fallback
+    }
+};
