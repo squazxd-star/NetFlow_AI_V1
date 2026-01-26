@@ -268,45 +268,84 @@ export const generateVideoScript = async (
 };
 
 /**
- * Synthesizes text to speech using Google Cloud TTS API (REST)
- * Note: Requires an API Key with Cloud Text-to-Speech API enabled.
+ * Synthesizes text to speech using OpenAI TTS API
  */
-export const generateSpeech = async (text: string): Promise<string | null> => {
+const generateOpenAISpeech = async (text: string, apiKey: string): Promise<string | null> => {
     try {
-        const apiKey = await getApiKey();
-        if (!apiKey) return null;
-
-        const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
-        const requestBody = {
-            input: { text },
-            voice: { languageCode: "th-TH", ssmlGender: "FEMALE" },
-            audioConfig: { audioEncoding: "MP3" },
-        };
-
-        const response = await fetch(url, {
+        console.log("🎙️ Generating speech with OpenAI TTS...");
+        const response = await fetch("https://api.openai.com/v1/audio/speech", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody),
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: "tts-1",
+                input: text,
+                voice: "nova" // "shimmer", "alloy", "echo", "fable", "onyx", "nova"
+            })
         });
 
         if (!response.ok) {
             const err = await response.json();
-            console.warn("TTS API Error:", err);
+            console.warn("OpenAI TTS Error:", err);
             return null;
         }
 
-        const data = await response.json();
-        // API returns audioContent as base64 string
-        // Convert to playable Blob URL
-        if (data.audioContent) {
-            return `data:audio/mp3;base64,${data.audioContent}`;
-        }
-        return null;
-
-    } catch (error) {
-        console.error("Error generating speech:", error);
+        const blob = await response.blob();
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+        });
+    } catch (e) {
+        console.error("OpenAI TTS Failed:", e);
         return null;
     }
+};
+
+/**
+ * Synthesizes text to speech using Google Cloud TTS API (with OpenAI fallback)
+ */
+export const generateSpeech = async (text: string): Promise<string | null> => {
+    // 1. Try Google Cloud TTS first
+    try {
+        const googleKey = await getApiKey('gemini');
+        if (googleKey) {
+            const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${googleKey}`;
+            const requestBody = {
+                input: { text },
+                voice: { languageCode: "th-TH", ssmlGender: "FEMALE" },
+                audioConfig: { audioEncoding: "MP3" },
+            };
+
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(requestBody),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.audioContent) {
+                    console.log("✅ Google TTS Success");
+                    return `data:audio/mp3;base64,${data.audioContent}`;
+                }
+            } else {
+                console.warn("Google TTS failed, trying OpenAI fallback...");
+            }
+        }
+    } catch (error) {
+        console.warn("Google TTS error, trying OpenAI fallback...");
+    }
+
+    // 2. Fallback to OpenAI TTS
+    const openaiKey = await getApiKey('openai');
+    if (openaiKey) {
+        return await generateOpenAISpeech(text, openaiKey);
+    }
+
+    return null;
 };
 
 /**

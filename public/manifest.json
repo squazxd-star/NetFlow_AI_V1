@@ -28,7 +28,9 @@
         {
             "matches": [
                 "*://labs.google/videofx*",
-                "*://labs.google/fx/tools/video-fx*"
+                "*://labs.google/fx/tools/video-fx*",
+                "*://labs.google/*",
+                "*://aitestkitchen.withgoogle.com/*"
             ],
             "js": [
                 "content/videofx-injector.js"
