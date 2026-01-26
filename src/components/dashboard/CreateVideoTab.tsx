@@ -88,25 +88,26 @@ const CreateVideoTab = () => {
         const userImage = productImages[0] || undefined;
         const characterImage = characterImages[0] || undefined;
 
-        // Try to trigger Browser Automation (Google Veo Injection)
+        // Try to trigger Browser Automation (Google Veo 2-Stage Pipeline)
         try {
             if (typeof chrome !== 'undefined' && chrome.tabs) {
                 const payload = {
                     productName: data.productName,
                     gender: data.gender,
                     emotion: data.expression,
-                    imageBase64: userImage,
-                    personImageBase64: characterImage,
-                    sceneDescription: data.aiPrompt, // Using prompt as scene desc
+                    productImage: userImage,         // Renamed for clarity
+                    characterImage: characterImage,  // Renamed for clarity
+                    sceneDescription: data.aiPrompt,
                     movement: data.movement
                 };
 
-                console.log("Sending automation payload:", payload);
+                console.log("🚀 Sending 2-Stage Pipeline payload:", payload);
 
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     if (tabs[0]?.id) {
+                        // Use TWO_STAGE_PIPELINE for the new flow
                         chrome.tabs.sendMessage(tabs[0].id, {
-                            type: 'INJECT_AUTOMATION_DATA',
+                            type: 'TWO_STAGE_PIPELINE',
                             payload
                         });
                     }

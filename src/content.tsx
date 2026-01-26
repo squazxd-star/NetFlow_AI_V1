@@ -35,7 +35,7 @@ const ContentScriptApp = () => {
     const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
 
     React.useEffect(() => {
-        const messageListener = (message: any, sender: any, sendResponse: any) => {
+        const messageListener = async (message: any, sender: any, sendResponse: any) => {
             if (message.type === 'SHOW_VIDEO_RESULT' && message.videoUrl) {
                 console.log('Received video URL:', message.videoUrl);
                 setVideoUrl(message.videoUrl);
@@ -44,6 +44,40 @@ const ContentScriptApp = () => {
             if (message.type === 'INJECT_AUTOMATION_DATA') {
                 console.log('Received automation data:', message);
                 handleAutomation(message.payload);
+            }
+
+            // NEW: 2-Stage Pipeline Handler
+            if (message.type === 'TWO_STAGE_PIPELINE') {
+                console.log('🚀 Starting 2-Stage Pipeline:', message);
+                const { runTwoStagePipeline } = await import('./utils/googleLabAutomation');
+                const { getFormattedPrompt } = await import('./utils/videoPromptTemplates');
+
+                const { characterImage, productImage, productName, gender, emotion } = message.payload;
+
+                // Generate video prompt
+                const videoPrompt = getFormattedPrompt({
+                    productName: productName || "Product",
+                    genderText: gender === 'male' ? "Thai man" : "Thai woman",
+                    emotion: emotion || "Happy"
+                });
+
+                // Image prompt for combining character + product
+                const imagePrompt = `Create a photorealistic image combining these two elements: 
+The person on the left holding or presenting the product on the right. 
+Keep the person's face EXACTLY as shown. Thai person, adult only.`;
+
+                const result = await runTwoStagePipeline({
+                    characterImage,
+                    productImage,
+                    imagePrompt,
+                    videoPrompt
+                });
+
+                // Send result back to extension if needed
+                chrome.runtime.sendMessage({
+                    type: 'PIPELINE_RESULT',
+                    result
+                });
             }
         };
 
