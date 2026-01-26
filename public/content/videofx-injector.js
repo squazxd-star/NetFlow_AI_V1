@@ -130,6 +130,69 @@ async function findGenerateButton() {
     throw new Error("Could not find generate button");
 }
 
+// Help bypass splash screens, overlays and marketing banners
+async function bypassSplashScreens() {
+    console.log("[VideoFX] Checking for splash screens or overlays...");
+
+    // 1. Try to dismiss marketing overlays (e.g. Nano Banana Pro)
+    const dismissSelectors = [
+        'button[aria-label*="Close"]',
+        'button[aria-label*="Dismiss"]',
+        'button[aria-label*="ปิด"]',
+        '.close-button',
+        '.dismiss-button',
+        '[class*="close"]'
+    ];
+
+    for (const selector of dismissSelectors) {
+        try {
+            const elements = document.querySelectorAll(selector);
+            for (const el of elements) {
+                if (el.offsetParent !== null) { // Check if visible
+                    console.log("[VideoFX] Dismissing overlay:", selector);
+                    el.click();
+                    await new Promise(r => setTimeout(r, 500));
+                }
+            }
+        } catch (e) { }
+    }
+
+    // 2. Try to click "New Project" button if on landing page
+    const newProjectSelectors = [
+        'button[aria-label*="New project"]',
+        'button[aria-label*="โปรเจกต์ใหม่"]',
+        'button:contains("New project")',
+        'button:contains("โปรเจกต์ใหม่")',
+        '[data-testid*="new-project"]'
+    ];
+
+    // Also search by text content for "New project" or "โปรเจกต์ใหม่"
+    const buttons = document.querySelectorAll('button');
+    for (const btn of buttons) {
+        const text = btn.textContent?.toLowerCase() || '';
+        if (text.includes('new project') || text.includes('โปรเจกต์ใหม่')) {
+            if (btn.offsetParent !== null) {
+                console.log("[VideoFX] Clicking New Project button by text:", btn.textContent);
+                btn.click();
+                await new Promise(r => setTimeout(r, 2000)); // Wait for editor to load
+                return;
+            }
+        }
+    }
+
+    for (const selector of newProjectSelectors) {
+        try {
+            const btn = document.querySelector(selector);
+            if (btn && btn.offsetParent !== null) {
+                console.log("[VideoFX] Clicking New Project button:", selector);
+                btn.click();
+                await new Promise(r => setTimeout(r, 2000));
+                return;
+            }
+        } catch (e) { }
+    }
+}
+
 // Watch for video element to appear
 async function waitForVideo() {
     console.log("[VideoFX] Waiting for video to generate...");
@@ -172,6 +235,9 @@ async function waitForVideo() {
 async function runAutomation(prompt) {
     try {
         console.log("[VideoFX] Starting automation with prompt:", prompt);
+
+        // Step 0: Bypass splash screens and enter editor
+        await bypassSplashScreens();
 
         // Step 1: Find and fill prompt
         const input = await findPromptInput();
