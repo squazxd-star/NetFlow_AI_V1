@@ -147,41 +147,80 @@ function debugHighlight(el, color = 'red') {
     el.style.boxShadow = `0 0 10px ${color}`;
 }
 
-// Aggressive bypass using XPath and text search
+// Aggressive bypass using scroll, wait, and coordinate-based clicking
 async function bypassSplashScreens() {
-    console.log("[VideoFX] CRITICAL: Starting aggressive bypass...");
+    console.log("[VideoFX] CRITICAL: Starting aggressive bypass v2...");
 
-    // 1. Force remove large overlays/dialogs that might be blocking the view
-    const potentialOverlays = document.querySelectorAll('div[role="dialog"], [class*="overlay"], [class*="Splash"]');
-    for (const overlay of potentialOverlays) {
-        if (isVisible(overlay) && overlay.innerText.includes('Banana')) {
-            console.log("[VideoFX] Forcibly removing blocking overlay card");
-            overlay.style.display = 'none';
+    // STEP 1: Wait for page to fully stabilize (SPA takes time to render)
+    console.log("[VideoFX] Waiting 5 seconds for page to fully render...");
+    await new Promise(r => setTimeout(r, 5000));
+
+    // STEP 2: Scroll down to reveal the "New Project" button (it's hidden below banner)
+    window.scrollTo(0, 400);
+    console.log("[VideoFX] Scrolled down to reveal buttons...");
+    await new Promise(r => setTimeout(r, 1000));
+
+    // STEP 3: Try to find and click X button on the Nano Banana banner
+    const allButtons = document.querySelectorAll('button, [role="button"]');
+    for (const btn of allButtons) {
+        const text = btn.textContent?.trim() || '';
+        const ariaLabel = btn.getAttribute('aria-label') || '';
+
+        // Close button on banner
+        if (text === 'X' || text === '×' || ariaLabel.toLowerCase().includes('close') || ariaLabel.toLowerCase().includes('dismiss')) {
+            if (isVisible(btn)) {
+                console.log("[VideoFX] Found close button, clicking:", text || ariaLabel);
+                debugHighlight(btn, 'yellow');
+                btn.click();
+                await new Promise(r => setTimeout(r, 1500));
+            }
         }
     }
 
-    // 2. Search for anything that says "New project" or "โปรเจกต์ใหม่" using XPath
-    const xpathQueries = [
-        "//*[contains(text(), 'New project')]",
-        "//*[contains(text(), 'โปรเจกต์ใหม่')]",
-        "//*[contains(@aria-label, 'New project')]",
-        "//*[contains(@aria-label, 'โปรเจกต์ใหม่')]",
-        "//button[contains(., '+')]"
-    ];
+    // STEP 4: Look for anything containing "โปรเจกต์ใหม่" or "New project" text
+    const allElements = document.querySelectorAll('*');
+    for (const el of allElements) {
+        if (el.children.length > 5) continue; // Skip complex containers
 
-    for (const query of xpathQueries) {
-        const result = document.evaluate(query, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
-        for (let i = 0; i < result.snapshotLength; i++) {
-            const el = result.snapshotItem(i);
-            if (isVisible(el)) {
-                console.log("[VideoFX] Found navigation target via XPath:", query);
-                debugHighlight(el, 'green');
+        const text = el.textContent?.trim().toLowerCase() || '';
+        if (text.includes('โปรเจกต์ใหม่') || text.includes('new project') || text === '+' || text === '+ โปรเจกต์ใหม่') {
+            if (isVisible(el) && el.offsetHeight < 200) { // Avoid clicking the whole page
+                console.log("[VideoFX] Found 'New Project' element:", el.textContent?.trim());
+                debugHighlight(el, 'lime');
+
+                // Try clicking directly
                 el.click();
-                await new Promise(r => setTimeout(r, 2500));
-                // After clicking, check if we arrived in editor
-                if (document.querySelector('textarea')) return;
+                await new Promise(r => setTimeout(r, 2000));
+
+                // Check if we entered editor
+                if (document.querySelector('textarea[placeholder]')) {
+                    console.log("[VideoFX] Successfully entered editor!");
+                    return;
+                }
+
+                // If click didn't work, try dispatching events manually
+                el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+                await new Promise(r => setTimeout(r, 2000));
+
+                if (document.querySelector('textarea[placeholder]')) {
+                    console.log("[VideoFX] Entered editor after forced click!");
+                    return;
+                }
             }
         }
+    }
+
+    // STEP 5: FALLBACK - Click at center-bottom of visible area (where the button appears)
+    console.log("[VideoFX] FALLBACK: Attempting coordinate-based click...");
+    const centerX = window.innerWidth / 2;
+    const bottomY = window.innerHeight - 150; // Near bottom of visible area
+
+    const elementAtCenter = document.elementFromPoint(centerX, bottomY);
+    if (elementAtCenter) {
+        console.log("[VideoFX] Found element at center-bottom:", elementAtCenter.tagName, elementAtCenter.textContent?.substring(0, 30));
+        debugHighlight(elementAtCenter, 'orange');
+        elementAtCenter.click();
+        await new Promise(r => setTimeout(r, 2000));
     }
 }
 
