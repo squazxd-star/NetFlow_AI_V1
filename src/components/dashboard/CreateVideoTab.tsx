@@ -88,6 +88,34 @@ const CreateVideoTab = () => {
         const userImage = productImages[0] || undefined;
         const characterImage = characterImages[0] || undefined;
 
+        // Try to trigger Browser Automation (Google Veo Injection)
+        try {
+            if (typeof chrome !== 'undefined' && chrome.tabs) {
+                const payload = {
+                    productName: data.productName,
+                    gender: data.gender,
+                    emotion: data.expression,
+                    imageBase64: userImage,
+                    personImageBase64: characterImage,
+                    sceneDescription: data.aiPrompt, // Using prompt as scene desc
+                    movement: data.movement
+                };
+
+                console.log("Sending automation payload:", payload);
+
+                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                    if (tabs[0]?.id) {
+                        chrome.tabs.sendMessage(tabs[0].id, {
+                            type: 'INJECT_AUTOMATION_DATA',
+                            payload
+                        });
+                    }
+                });
+            }
+        } catch (err) {
+            console.warn("Automation trigger failed (context might not be extension):", err);
+        }
+
         // Use clipCount as loop count (parse if string)
         const loopCount = typeof data.clipCount === 'number' ? data.clipCount : 1;
 

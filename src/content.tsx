@@ -2,6 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import VideoResultOverlay from './components/overlay/VideoResultOverlay';
 import './index.css'; // Reuse main styles or import specific overlay styles
+import { getFormattedPrompt } from './utils/videoPromptTemplates';
+import { uploadImageToWeb, fillPrompt, clickButton } from './utils/controls';
 
 console.log('NetFlow AI Content Script Loaded');
 
@@ -38,11 +40,55 @@ const ContentScriptApp = () => {
                 console.log('Received video URL:', message.videoUrl);
                 setVideoUrl(message.videoUrl);
             }
+
+            if (message.type === 'INJECT_AUTOMATION_DATA') {
+                console.log('Received automation data:', message);
+                handleAutomation(message.payload);
+            }
         };
 
         chrome.runtime.onMessage.addListener(messageListener);
         return () => chrome.runtime.onMessage.removeListener(messageListener);
     }, []);
+
+    const handleAutomation = async (data: any) => {
+        const { productName, gender, emotion, imageBase64, personImageBase64 } = data;
+
+        // 1. Generate Prompt
+        const promptVars = {
+            productName: productName || "Generic Product",
+            genderText: gender === 'male' ? "Thai man" : "Thai woman",
+            emotion: emotion || "Happy",
+            sceneDescription: data.sceneDescription, // Optional
+            movement: data.movement // Optional
+        };
+
+        const finalPrompt = getFormattedPrompt(promptVars);
+        console.log("Generated Prompt:", finalPrompt);
+
+        // 2. Fill Prompt into the textarea (assuming a generic textarea for now)
+        // You might need to inspect the target site for the exact selector
+        fillPrompt(finalPrompt, 'textarea[placeholder*="Describe"]');
+
+        // 3. Upload Reference Image (Product)
+        if (imageBase64) {
+            // Assuming the input is the standard file input
+            uploadImageToWeb(imageBase64, 'input[type="file"]');
+        }
+
+        // 4. Upload Person/Character Image (if separate input exists)
+        if (personImageBase64) {
+            // If the site has a second input for character ref, use a specific selector
+            // For now, assuming it might be the same or a different one. 
+            // If it's the same, we might need to wait or handle multiple file uploads.
+            // Let's assume a hypothetical second input or just log it for now.
+            console.log("Person image injection requested (selector needs verification)");
+            // uploadImageToWeb(personImageBase64, 'input[name="character_ref"]'); 
+        }
+
+        // 5. Click Generate (Selector needs to be verified on actual site)
+        // clickButton('button:contains("Generate")'); 
+    };
 
     if (!videoUrl) return null;
 
