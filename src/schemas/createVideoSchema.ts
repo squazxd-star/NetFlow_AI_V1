@@ -3,14 +3,13 @@ import { z } from "zod";
 export const createVideoSchema = z.object({
     // Product Data
     productId: z.string().default(""),
-    productName: z.string().min(1, "กรุณาระบุชื่อสินค้า").default(""),
-    productDescription: z.string().default(""),
+    productName: z.string().default(""),
 
     // AI Scripting
     useAiScript: z.boolean().default(true),
     aiPrompt: z.string().default(""),
     saleStyle: z.enum(["hard", "soft", "educational", "storytelling"]).default("hard"),
-    language: z.enum(["th-central", "th-north", "th-south", "th-isan", "en"]).default("th-central"),
+    language: z.enum(["th-central", "th-north", "th-south", "th-isan"]).default("th-central"),
     voiceTone: z.enum(["energetic", "calm", "friendly", "professional"]).default("energetic"),
     template: z.enum([
         "product-review",
@@ -31,35 +30,36 @@ export const createVideoSchema = z.object({
     ctaEnabled: z.boolean().default(true),
 
     // Character & Style
-    gender: z.enum(["male", "female", "any"]).default("female"),
-    ageRange: z.enum(["teen", "young-adult", "adult", "middle-age", "senior"]).default("young-adult"),
+    gender: z.enum(["male", "female"]).default("female"),
+    ageRange: z.enum(["teen", "young-adult", "adult", "middle-age", "senior"]).default("teen"),
     personality: z.enum(["cheerful", "calm", "professional", "playful", "mysterious"]).default("cheerful"),
     clothingStyles: z.array(z.enum(["casual", "formal", "sporty", "fashion", "uniform"])).default(["casual"]),
-    background: z.enum(["studio", "outdoor", "home", "office", "abstract", "product-focused"]).default("studio"),
-    voiceSetting: z.enum(["original", "ai-generated", "text-to-speech"]).default("ai-generated"),
+    background: z.enum(["studio", "outdoor", "home", "office", "abstract"]).default("studio"),
+    voiceSetting: z.enum(["original", "ai-generated", "text-to-speech"]).default("original"),
     touchLevel: z.enum(["low", "medium", "high"]).default("medium"),
-    expression: z.enum(["neutral", "happy", "excited", "serious"]).default("happy"),
+    expression: z.enum(["neutral", "happy", "excited", "serious"]).default("neutral"),
     cameraAngles: z.array(z.enum(["front", "side", "close-up", "full-body", "dynamic"])).default(["front"]),
     movement: z.enum(["static", "minimal", "active"]).default("minimal"),
 
     // Generation Settings
     clipCount: z.union([
-        z.literal(1),
-        z.literal(3),
         z.literal(5),
         z.literal(10),
         z.literal(25),
-    ]).default(1),
-    aspectRatio: z.enum(["9:16", "16:9", "1:1"]).default("9:16"),
+        z.literal(50),
+        z.literal(100),
+        z.literal("unlimited")
+    ]).default(50),
+    aspectRatio: z.enum(["9:16", "16:9"]).default("9:16"),
     videoDuration: z.enum(["short", "medium", "long"]).default("short"),
     restInterval: z.enum(["30s", "1m", "2m", "5m", "10m"]).default("30s"),
 
     // Posting Settings
-    autoPostTikTok: z.boolean().default(false),
+    autoPostTikTok: z.boolean().default(true),
     autoPostYoutube: z.boolean().default(false),
     smartLoop: z.boolean().default(false),
 
-    // Keywords
+    // Keywords (additional fields from the component)
     mustUseKeywords: z.string().default(""),
     avoidKeywords: z.string().default(""),
 });
@@ -68,36 +68,35 @@ export type CreateVideoFormData = z.infer<typeof createVideoSchema>;
 
 // Default values for useForm
 export const createVideoDefaultValues: CreateVideoFormData = {
-    productId: "",
-    productName: "",
-    productDescription: "",
+    productId: "DEMO-001",
+    productName: "Future Warrior Model X",
     useAiScript: true,
-    aiPrompt: "",
+    aiPrompt: "A futuristic cyberpunk warrior in neon armor, high detail, 8k resolution, cinematic lighting",
     saleStyle: "storytelling",
     language: "th-central",
     voiceTone: "energetic",
-    template: "product-review",
+    template: "mini-drama",
     hookText: "",
     ctaText: "",
     hookEnabled: true,
     ctaEnabled: true,
     gender: "female",
     ageRange: "young-adult",
-    personality: "cheerful",
-    clothingStyles: ["casual"],
-    background: "studio",
-    voiceSetting: "ai-generated",
-    touchLevel: "medium",
-    expression: "happy",
-    cameraAngles: ["front"],
-    movement: "minimal",
-    clipCount: 1,
+    personality: "mysterious",
+    clothingStyles: ["fashion"],
+    background: "abstract",
+    voiceSetting: "original",
+    touchLevel: "high",
+    expression: "serious",
+    cameraAngles: ["dynamic"],
+    movement: "active",
+    clipCount: 5,
     aspectRatio: "9:16",
-    videoDuration: "short",
+    videoDuration: "medium",
     restInterval: "30s",
-    autoPostTikTok: false,
+    autoPostTikTok: true,
     autoPostYoutube: false,
-    smartLoop: false,
-    mustUseKeywords: "",
-    avoidKeywords: "",
+    smartLoop: true,
+    mustUseKeywords: "Cyberpunk, Neon, Future",
+    avoidKeywords: "blur, low quality",
 };
