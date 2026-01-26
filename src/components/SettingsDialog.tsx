@@ -260,36 +260,55 @@ const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
                         </div>
                     </div>
 
-                    {/* Section 5: Developer Options */}
+                    {/* Section 5: AI Provider Selection */}
                     <div className="space-y-4">
                         <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-yellow-500/20 flex items-center justify-center">
-                                <div className="w-3 h-3 text-yellow-500 font-bold">D</div>
+                            <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                                <div className="w-3 h-3 text-green-500 font-bold">AI</div>
                             </div>
-                            <h3 className="text-sm font-semibold text-white">Developer Mode</h3>
+                            <h3 className="text-sm font-semibold text-white">เลือก AI สำหรับสร้าง Script</h3>
                         </div>
 
                         <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-3">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <span className="text-sm font-medium text-white">Simulation Mode (ระบบจำลอง)</span>
-                                    <p className="text-xs text-muted-foreground">ใช้ Mock Data แสดงผลแทนการยิง API จริง (เหมาะสำหรับ Demo)</p>
-                                </div>
-                                <Switch
-                                    id="simulation-mode"
-                                    // Logic to be connected to storage later, for now we just show UI
-                                    defaultChecked={localStorage.getItem("netflow_simulation_mode") === "true"}
-                                    onCheckedChange={(checked) => {
-                                        localStorage.setItem("netflow_simulation_mode", checked.toString());
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    onClick={() => {
+                                        localStorage.setItem("netflow_ai_provider", "openai");
                                         toast({
-                                            title: checked ? "Enabled Simulation Mode" : "Disabled Simulation Mode",
-                                            description: "Reloading page to apply changes...",
+                                            title: "เปลี่ยนเป็น OpenAI ✅",
+                                            description: "ระบบจะใช้ OpenAI GPT-4 ในการสร้าง Script",
+                                            className: "bg-green-600 text-white"
                                         });
-                                        setTimeout(() => window.location.reload(), 1000);
                                     }}
-                                    className="data-[state=checked]:bg-yellow-500"
-                                />
+                                    className={`p-3 rounded-lg border transition-all ${localStorage.getItem("netflow_ai_provider") === "openai" || !localStorage.getItem("netflow_ai_provider")
+                                            ? "bg-green-500/20 border-green-500 text-green-400"
+                                            : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
+                                        }`}
+                                >
+                                    <div className="text-lg font-bold">OpenAI</div>
+                                    <div className="text-xs opacity-70">GPT-4o-mini</div>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        localStorage.setItem("netflow_ai_provider", "gemini");
+                                        toast({
+                                            title: "เปลี่ยนเป็น Gemini ✅",
+                                            description: "ระบบจะใช้ Google Gemini ในการสร้าง Script",
+                                            className: "bg-blue-600 text-white"
+                                        });
+                                    }}
+                                    className={`p-3 rounded-lg border transition-all ${localStorage.getItem("netflow_ai_provider") === "gemini"
+                                            ? "bg-blue-500/20 border-blue-500 text-blue-400"
+                                            : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
+                                        }`}
+                                >
+                                    <div className="text-lg font-bold">Gemini</div>
+                                    <div className="text-xs opacity-70">Gemini 2.0 Flash</div>
+                                </button>
                             </div>
+                            <p className="text-xs text-muted-foreground text-center">
+                                * เลือก AI ที่จะใช้สร้าง Script (ต้องใส่ API Key ด้วย)
+                            </p>
                         </div>
                     </div>
 

@@ -1,102 +1,78 @@
 import { z } from "zod";
 
+/**
+ * Simplified Video Creation Schema
+ * Only essential fields that directly affect AI prompt generation
+ */
 export const createVideoSchema = z.object({
-    // Product Data
-    productId: z.string().default(""),
-    productName: z.string().default(""),
+    // === Product Data ===
+    productId: z.string().default(""),           // For TikTok Pin Cart
+    productName: z.string().min(1, "กรุณาระบุชื่อสินค้า"),
 
-    // AI Scripting
-    useAiScript: z.boolean().default(true),
-    aiPrompt: z.string().default(""),
-    saleStyle: z.enum(["hard", "soft", "educational", "storytelling"]).default("hard"),
-    language: z.enum(["th-central", "th-north", "th-south", "th-isan"]).default("th-central"),
-    voiceTone: z.enum(["energetic", "calm", "friendly", "professional"]).default("energetic"),
+    // === Script Settings ===
     template: z.enum([
-        "product-review",
-        "brainrot-product",
-        "unboxing",
-        "comparison",
-        "testimonial",
-        "flash-sale",
-        "tutorial",
-        "lifestyle",
-        "trending",
-        "mini-drama",
-        "before-after"
+        "product-review",    // รีวิวสินค้า
+        "unboxing",          // แกะกล่อง
+        "comparison",        // เปรียบเทียบ
+        "testimonial",       // รีวิวลูกค้า
+        "flash-sale",        // Flash Sale
+        "tutorial",          // สอนใช้งาน
+        "lifestyle",         // ไลฟ์สไตล์
+        "before-after"       // ก่อน-หลัง
     ]).default("product-review"),
-    hookText: z.string().default(""),
-    ctaText: z.string().default(""),
-    hookEnabled: z.boolean().default(true),
-    ctaEnabled: z.boolean().default(true),
 
-    // Character & Style
+    saleStyle: z.enum([
+        "hard",              // ขายแรง
+        "soft",              // ขายนุ่ม
+        "educational",       // ให้ความรู้
+        "storytelling"       // เล่าเรื่อง
+    ]).default("soft"),
+
+    voiceTone: z.enum([
+        "energetic",         // ตื่นเต้น
+        "calm",              // สงบ
+        "friendly",          // เป็นกันเอง
+        "professional"       // มืออาชีพ
+    ]).default("friendly"),
+
+    language: z.enum([
+        "th",                // ไทยกลาง
+        "th-north",          // เหนือ
+        "th-south",          // ใต้
+        "th-isan"            // อีสาน
+    ]).default("th"),
+
+    // === Character/Visual ===
     gender: z.enum(["male", "female"]).default("female"),
-    ageRange: z.enum(["teen", "young-adult", "adult", "middle-age", "senior"]).default("teen"),
-    personality: z.enum(["cheerful", "calm", "professional", "playful", "mysterious"]).default("cheerful"),
-    clothingStyles: z.array(z.enum(["casual", "formal", "sporty", "fashion", "uniform"])).default(["casual"]),
-    background: z.enum(["studio", "outdoor", "home", "office", "abstract"]).default("studio"),
-    voiceSetting: z.enum(["original", "ai-generated", "text-to-speech"]).default("original"),
-    touchLevel: z.enum(["low", "medium", "high"]).default("medium"),
-    expression: z.enum(["neutral", "happy", "excited", "serious"]).default("neutral"),
-    cameraAngles: z.array(z.enum(["front", "side", "close-up", "full-body", "dynamic"])).default(["front"]),
-    movement: z.enum(["static", "minimal", "active"]).default("minimal"),
 
-    // Generation Settings
-    clipCount: z.union([
-        z.literal(5),
-        z.literal(10),
-        z.literal(25),
-        z.literal(50),
-        z.literal(100),
-        z.literal("unlimited")
-    ]).default(50),
+    // === Hook & CTA ===
+    hookEnabled: z.boolean().default(true),
+    hookText: z.string().default(""),
+    ctaEnabled: z.boolean().default(true),
+    ctaText: z.string().default(""),
+
+    // === Additional Prompt ===
+    aiPrompt: z.string().default(""),            // User's custom instructions
+
+    // === Video Settings ===
     aspectRatio: z.enum(["9:16", "16:9"]).default("9:16"),
-    videoDuration: z.enum(["short", "medium", "long"]).default("short"),
-    restInterval: z.enum(["30s", "1m", "2m", "5m", "10m"]).default("30s"),
-
-    // Posting Settings
-    autoPostTikTok: z.boolean().default(true),
-    autoPostYoutube: z.boolean().default(false),
-    smartLoop: z.boolean().default(false),
-
-    // Keywords (additional fields from the component)
-    mustUseKeywords: z.string().default(""),
-    avoidKeywords: z.string().default(""),
 });
 
 export type CreateVideoFormData = z.infer<typeof createVideoSchema>;
 
-// Default values for useForm
+// Default values
 export const createVideoDefaultValues: CreateVideoFormData = {
-    productId: "DEMO-001",
-    productName: "Future Warrior Model X",
-    useAiScript: true,
-    aiPrompt: "A futuristic cyberpunk warrior in neon armor, high detail, 8k resolution, cinematic lighting",
-    saleStyle: "storytelling",
-    language: "th-central",
-    voiceTone: "energetic",
-    template: "mini-drama",
-    hookText: "",
-    ctaText: "",
-    hookEnabled: true,
-    ctaEnabled: true,
+    productId: "",
+    productName: "",
+    template: "product-review",
+    saleStyle: "soft",
+    voiceTone: "friendly",
+    language: "th",
     gender: "female",
-    ageRange: "young-adult",
-    personality: "mysterious",
-    clothingStyles: ["fashion"],
-    background: "abstract",
-    voiceSetting: "original",
-    touchLevel: "high",
-    expression: "serious",
-    cameraAngles: ["dynamic"],
-    movement: "active",
-    clipCount: 5,
+    hookEnabled: true,
+    hookText: "",
+    ctaEnabled: true,
+    ctaText: "",
+    aiPrompt: "",
     aspectRatio: "9:16",
-    videoDuration: "medium",
-    restInterval: "30s",
-    autoPostTikTok: true,
-    autoPostYoutube: false,
-    smartLoop: true,
-    mustUseKeywords: "Cyberpunk, Neon, Future",
-    avoidKeywords: "blur, low quality",
 };

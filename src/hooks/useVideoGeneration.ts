@@ -111,38 +111,42 @@ export const useVideoGeneration = () => {
         setError(null);
         setResult(null);
 
+        console.log("🚀 Starting Workflow...", {
+            productName: data.productName,
+            template: data.template,
+            saleStyle: data.saleStyle,
+            voiceTone: data.voiceTone,
+            language: data.language
+        });
+
         try {
             // Check if RPA mode is enabled
             const useRPA = localStorage.getItem("netflow_use_rpa") === "true";
 
-            if (useRPA && data.aiPrompt) {
-                // Use RPA mode
+            if (useRPA && isExtension) {
+                // Use RPA mode - generate script first, then send to VideoFX
                 await generateWithRPA(data.aiPrompt || `Create a video for ${data.productName}`);
                 return;
             }
 
-            // Existing API Logic
-            let payload: any = {
+            // Build payload with ALL new schema fields
+            const payload = {
                 productName: data.productName || "สินค้าทั่วไป",
+                template: data.template || "product-review",
+                saleStyle: data.saleStyle || "soft",
+                voiceTone: data.voiceTone || "friendly",
+                language: data.language || "th",
+                gender: data.gender || "female",
+                hookEnabled: data.hookEnabled ?? true,
+                hookText: data.hookText || "",
+                ctaEnabled: data.ctaEnabled ?? true,
+                ctaText: data.ctaText || "",
+                aiPrompt: data.aiPrompt || "",
+                aspectRatio: data.aspectRatio || "9:16",
+                userImage: data.userImage,
             };
 
-            if (data.userImage) {
-                payload = {
-                    ...payload,
-                    prompt: data.aiPrompt || `Video for ${data.productName}`,
-                    userImage: data.userImage,
-                    style: data.saleStyle || "cinematic",
-                    loopCount: data.loopCount || 1,
-                    concatenate: data.concatenate || false
-                };
-            } else {
-                payload = {
-                    ...payload,
-                    style: data.saleStyle || "fun",
-                    tone: data.voiceTone || "excited",
-                    language: data.language || "th"
-                };
-            }
+            console.log("📋 Sending payload to workflow:", payload);
 
             const serviceResult = await runFullWorkflow(payload);
 
@@ -156,16 +160,7 @@ export const useVideoGeneration = () => {
                 }
             };
 
-            const isMockVideo = serviceResult.videoUrl?.includes("gtv-videos-bucket");
-
-            if (isMockVideo) {
-                toast({
-                    title: "ระบบทำงานในโหมดจำลอง (Simulation Mode)",
-                    description: "ระบบใช้ Video ตัวอย่างแทนครับ",
-                    variant: "destructive",
-                    duration: 5000
-                });
-            } else if (serviceResult.videoUrl) {
+            if (serviceResult.videoUrl) {
                 toast({
                     title: "สร้างวิดีโอสำเร็จ! 🎉",
                     description: "วิดีโอถูกสร้างเรียบร้อยแล้ว",

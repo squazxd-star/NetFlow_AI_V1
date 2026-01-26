@@ -11,34 +11,139 @@ const getGenAI = async () => {
     return new GoogleGenerativeAI(key);
 };
 
-// Interface for script generation input
+/**
+ * Enhanced Script Request - Uses ALL form fields
+ */
 export interface ScriptRequest {
+    // Required
     productName: string;
-    style: string;
-    tone: string;
-    language: string;
+
+    // Script Style
+    template: string;      // product-review, unboxing, comparison, etc.
+    saleStyle: string;     // hard, soft, educational, storytelling
+    voiceTone: string;     // energetic, calm, friendly, professional
+    language: string;      // th, th-north, th-south, th-isan
+
+    // Character
+    gender: string;        // male, female
+
+    // Hook & CTA
+    hookEnabled?: boolean;
+    hookText?: string;
+    ctaEnabled?: boolean;
+    ctaText?: string;
+
+    // Custom
+    aiPrompt?: string;     // User's additional instructions
+
+    // Video
+    aspectRatio?: string;  // 9:16, 16:9
 }
 
 // Interface for the result
 export interface ScriptResult {
     script: string;
-    audioUrl?: string; // Optional: Result from TTS
-    videoUrl?: string; // Optional: Result from Veo
+    audioUrl?: string;
+    videoUrl?: string;
 }
+
+/**
+ * Template descriptions for AI understanding
+ */
+const TEMPLATE_DESCRIPTIONS: Record<string, string> = {
+    "product-review": "รีวิวสินค้าอย่างละเอียด พูดถึงคุณสมบัติ ข้อดี และประสบการณ์ใช้งานจริง",
+    "unboxing": "แกะกล่องสินค้า แสดงความตื่นเต้น พูดถึงแพ็คเกจและ first impression",
+    "comparison": "เปรียบเทียบก่อน-หลังใช้สินค้า หรือเปรียบกับสินค้าอื่น",
+    "testimonial": "รีวิวจากมุมมองลูกค้า เล่าปัญหาที่เจอและสินค้าช่วยได้อย่างไร",
+    "flash-sale": "โปรโมชั่นเร่งด่วน สร้างความรู้สึกเร่งรีบ ต้องรีบซื้อ",
+    "tutorial": "สอนวิธีใช้งานสินค้า step-by-step",
+    "lifestyle": "แสดงให้เห็นว่าสินค้าเข้ากับไลฟ์สไตล์ได้อย่างไร",
+    "before-after": "แสดงผลลัพธ์ก่อนและหลังใช้สินค้า อย่างน่าทึ่ง"
+};
+
+/**
+ * Build rich prompt from all form fields
+ */
+const buildRichPrompt = (data: ScriptRequest): string => {
+    const templateDesc = TEMPLATE_DESCRIPTIONS[data.template] || TEMPLATE_DESCRIPTIONS["product-review"];
+
+    let prompt = `
+คุณคือนักเขียนสคริปต์ TikTok มืออาชีพ สร้างสคริปต์วิดีโอสั้นสำหรับขายสินค้า
+
+## ข้อมูลสินค้า
+- ชื่อสินค้า: ${data.productName}
+
+## รูปแบบวิดีโอ
+- Template: ${data.template} (${templateDesc})
+- สไตล์การขาย: ${data.saleStyle === 'hard' ? 'ขายแรง กระตุ้นให้ซื้อทันที' :
+            data.saleStyle === 'soft' ? 'ขายนุ่ม ไม่กดดัน' :
+                data.saleStyle === 'educational' ? 'ให้ความรู้ก่อนขาย' : 'เล่าเรื่องสร้างอารมณ์'}
+- น้ำเสียง: ${data.voiceTone === 'energetic' ? 'ตื่นเต้น มีพลัง' :
+            data.voiceTone === 'calm' ? 'สงบ น่าเชื่อถือ' :
+                data.voiceTone === 'friendly' ? 'เป็นกันเอง อบอุ่น' : 'มืออาชีพ จริงจัง'}
+
+## ตัวละคร
+- เพศผู้พูด: ${data.gender === 'male' ? 'ชาย' : 'หญิง'}
+- ภาษา: ${data.language === 'th' ? 'ไทยกลาง' :
+            data.language === 'th-north' ? 'ภาษาเหนือ' :
+                data.language === 'th-south' ? 'ภาษาใต้' : 'ภาษาอีสาน'}
+`;
+
+    // Add hook if enabled
+    if (data.hookEnabled) {
+        prompt += `\n## ประโยคเปิด (Hook)\n`;
+        if (data.hookText) {
+            prompt += `- ใช้ประโยคเปิดว่า: "${data.hookText}"\n`;
+        } else {
+            prompt += `- สร้างประโยคเปิดที่ดึงดูดให้หยุดดู\n`;
+        }
+    }
+
+    // Add CTA if enabled
+    if (data.ctaEnabled) {
+        prompt += `\n## Call to Action (CTA)\n`;
+        if (data.ctaText) {
+            prompt += `- ใช้ CTA ว่า: "${data.ctaText}"\n`;
+        } else {
+            prompt += `- สร้าง CTA กระตุ้นให้กดซื้อ เช่น "กดตะกร้าเลย" หรือ "ลิงก์อยู่ใน bio"\n`;
+        }
+    }
+
+    // Add user's custom instructions
+    if (data.aiPrompt && data.aiPrompt.trim()) {
+        prompt += `\n## คำสั่งเพิ่มเติมจากผู้ใช้\n${data.aiPrompt}\n`;
+    }
+
+    // Output format
+    prompt += `
+## รูปแบบ Output
+- เขียนเป็นสคริปต์พูด (ไม่ใช่ scene description)
+- ความยาว 15-30 วินาที
+- ใช้ภาษาที่เป็นธรรมชาติ เหมือนคนพูดจริงๆ
+- ห้ามใช้คำว่า "100%", "การันตี", "รักษาโรค" หรือคำโฆษณาเกินจริง
+
+## สคริปต์:
+`;
+
+    return prompt;
+};
 
 /**
  * Helper to generate using OpenAI
  */
 const generateWithOpenAI = async (apiKey: string, data: ScriptRequest): Promise<string> => {
     console.log("🤖 Generating script with OpenAI (GPT-4o-mini)...");
-    const prompt = `
-        Generate a viral TikTok video script for a product named '${data.productName}'.
-        Style: ${data.style}
-        Tone: ${data.tone}
-        Language: ${data.language}
-        
-        Output ONLY the script text, no metadata, no scene descriptions unless necessary for the script dialogue.
-    `;
+    console.log("📋 Using fields:", {
+        productName: data.productName,
+        template: data.template,
+        saleStyle: data.saleStyle,
+        voiceTone: data.voiceTone,
+        gender: data.gender,
+        hookEnabled: data.hookEnabled,
+        ctaEnabled: data.ctaEnabled
+    });
+
+    const prompt = buildRichPrompt(data);
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -47,12 +152,13 @@ const generateWithOpenAI = async (apiKey: string, data: ScriptRequest): Promise<
             "Authorization": `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-            model: "gpt-4o-mini", // Cost efficient and fast
+            model: "gpt-4o-mini",
             messages: [
-                { role: "system", content: "You are a professional TikTok script writer." },
+                { role: "system", content: "You are a professional Thai TikTok script writer. Write natural, engaging scripts that sell products." },
                 { role: "user", content: prompt }
             ],
-            temperature: 0.7
+            temperature: 0.8,
+            max_tokens: 500
         })
     });
 
@@ -65,63 +171,62 @@ const generateWithOpenAI = async (apiKey: string, data: ScriptRequest): Promise<
     return json.choices[0].message.content || "";
 };
 
+
 /**
- * Generates a viral TikTok script using Google Gemini (or OpenAI if available)
+ * Generates a viral TikTok script using the selected AI Provider (OpenAI or Gemini)
  */
 export const generateVideoScript = async (
     data: ScriptRequest
 ): Promise<string> => {
-    // 1. Try OpenAI First (if configured)
-    const openaiKey = await getApiKey('openai');
-    if (openaiKey) {
-        try {
-            return await generateWithOpenAI(openaiKey, data);
-        } catch (error) {
-            console.warn("⚠️ OpenAI Generation failed, falling back to Gemini...", error);
+    // Check which AI Provider user selected (default: OpenAI)
+    const aiProvider = localStorage.getItem("netflow_ai_provider") || "openai";
+    console.log(`🤖 Using AI Provider: ${aiProvider.toUpperCase()}`);
+
+    // 1. If OpenAI is selected
+    if (aiProvider === "openai") {
+        const openaiKey = await getApiKey('openai');
+        if (openaiKey) {
+            try {
+                return await generateWithOpenAI(openaiKey, data);
+            } catch (error: any) {
+                console.error("❌ OpenAI Generation failed:", error.message);
+                throw new Error(`OpenAI Error: ${error.message}`);
+            }
+        } else {
+            throw new Error("OpenAI API Key ไม่พบ! กรุณาใส่ Key ใน Settings");
         }
     }
 
-    // 2. Helper to try generation with a specific Gemini model
-    const tryGenerate = async (modelName: string) => {
-        console.log(`Attempting script generation with model: ${modelName}`);
-        const genAI = await getGenAI();
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const prompt = `
-            Generate a viral TikTok video script for a product named '${data.productName}'.
-            Style: ${data.style}
-            Tone: ${data.tone}
-            Language: ${data.language}
-            
-            Output ONLY the script text, no metadata, no scene descriptions unless necessary for the script dialogue.
-        `;
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        return response.text();
-    };
+    // 2. If Gemini is selected
+    if (aiProvider === "gemini") {
+        const tryGenerate = async (modelName: string) => {
+            console.log(`🔷 Attempting script generation with Gemini model: ${modelName}`);
+            const genAI = await getGenAI();
+            const model = genAI.getGenerativeModel({ model: modelName });
 
-    try {
-        // Try preferred model first (gemini-2.0-flash)
-        return await tryGenerate("gemini-2.0-flash");
-    } catch (error: any) {
-        console.warn("gemini-2.0-flash failed, trying fallback to gemini-pro...", error.message);
+            // Use the same rich prompt as OpenAI
+            const prompt = buildRichPrompt(data);
+
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            return response.text();
+        };
+
         try {
-            // Fallback to older stable model
-            return await tryGenerate("gemini-pro");
-        } catch (fallbackError) {
-            console.error("All API models failed. Returning mock script for simulation.", fallbackError);
-
-            // Final Fallback: Mock Script (for testing without valid API key)
-            return `(Simulated Script for ${data.productName})
-            [Opening Shot: ${data.productName} appearing with neon effects]
-            Host: "ทุกคน! ใครยังไม่ลอง ${data.productName} คือพลาดมาก!"
-            [Cut to: Close up of product texture]
-            Host: "ดูความฉ่ำนี่สิ เป็น ${data.style} ที่สุด!"
-            [Cut to: Before/After comparison]
-            Host: "เปลี่ยนจากหน้าพัง เป็นหน้าปังใน 3 วิ!"
-            [Closing: Call to Action]
-            Host: "กดตะกร้าเลยตอนนี้ ของหมดไวมากแม่!"`;
+            return await tryGenerate("gemini-2.0-flash");
+        } catch (error: any) {
+            console.warn("gemini-2.0-flash failed, trying fallback to gemini-pro...", error.message);
+            try {
+                return await tryGenerate("gemini-pro");
+            } catch (fallbackError: any) {
+                console.error("❌ All Gemini models failed:", fallbackError.message);
+                throw new Error(`Gemini Error: ${fallbackError.message}`);
+            }
         }
     }
+
+    // Should not reach here, but just in case
+    throw new Error("ไม่พบ AI Provider ที่ถูกต้อง กรุณาเลือกใน Settings");
 };
 
 /**
@@ -184,17 +289,7 @@ export const generateVideo = async (script: string): Promise<string | null> => {
 export const runFullWorkflow = async (data: ScriptRequest | AdvancedVideoRequest): Promise<ScriptResult> => {
     console.log("Starting Workflow...", data);
 
-    // CHECK SIMULATION MODE
-    const isSimMode = localStorage.getItem("netflow_simulation_mode") === "true";
-    if (isSimMode) {
-        console.log("🔶 SIMULATION MODE ACTIVE: Skipping Real API calls.");
-        await new Promise(r => setTimeout(r, 2000)); // Fake loading
-        return {
-            script: `(Simulation Script)\nHost: "This is a demo video generated in Simulation Mode!"\nHost: "No API quota was used."`,
-            audioUrl: undefined,
-            videoUrl: "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
-        };
-    }
+    // SIMULATION MODE REMOVED - Always use real API
 
     try {
         let script = "";
