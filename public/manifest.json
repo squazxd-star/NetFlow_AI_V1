@@ -33,7 +33,7 @@
                 "*://aitestkitchen.withgoogle.com/*"
             ],
             "js": [
-                "content/videofx-injector.js"
+                "src/content.js"
             ],
             "run_at": "document_idle"
         },
