@@ -18,7 +18,8 @@ const AiScriptSection = ({
     setValue,
     watch,
     isOpen,
-    onToggle
+    onToggle,
+    productImages
 }: AiScriptSectionProps) => {
     const useAiScript = watch("useAiScript");
     const template = watch("template");
@@ -91,14 +92,67 @@ const AiScriptSection = ({
 
                     {/* Prompt - Disabled in AI mode */}
                     <div>
-                        <label className={`text-xs mb-1.5 block flex items-center gap-1 ${isAiMode ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
-                            <RefreshCw className="w-3 h-3" />
-                            คำสั่งเพิ่มเติม (Prompt)
-                        </label>
+                        <div className="flex items-center justify-between mb-1.5">
+                            <label className={`text-xs block flex items-center gap-1 ${isAiMode ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
+                                <RefreshCw className="w-3 h-3" />
+                                คำสั่งเพิ่มเติม (Prompt)
+                            </label>
+
+                            {/* Analyze Logic Feature */}
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    const img = productImages[0];
+                                    if (!img) {
+                                        alert("กรุณาอัพโหลดรูปสินค้าก่อน (ในส่วนข้อมูลสินค้า)");
+                                        return;
+                                    }
+                                    try {
+                                        // Dynamic Import to avoid circular deps if any
+                                        const { generateVisualPrompt } = await import("@/services/geminiService");
+                                        const { getApiKey } = await import("@/services/storageService");
+                                        const apiKey = await getApiKey("openai");
+
+                                        if (!apiKey) {
+                                            alert("ไม่พบ OpenAI API Key");
+                                            return;
+                                        }
+
+                                        // Set loading state if possible or just alert
+                                        const btn = document.getElementById("analyze-btn");
+                                        if (btn) btn.innerText = "⏳ กำลังวิเคราะห์...";
+
+                                        const style = watch("saleStyle") || "hard";
+                                        const name = watch("productName") || "";
+
+                                        const result = await generateVisualPrompt(apiKey, img, name, style);
+
+                                        // Parse result to get just the prompt part if needed, or put whole text
+                                        // Default format is "Name: ... \n Prompt: ..." 
+                                        const promptMatch = result.match(/Prompt:\s*([\s\S]+)/i);
+                                        const cleanPrompt = promptMatch ? promptMatch[1].trim() : result;
+
+                                        setValue("aiPrompt", cleanPrompt);
+                                        setValue("useAiScript", false); // Switch to Manual so user can see it
+
+                                        if (btn) btn.innerText = "✨ วิเคราะห์ภาพด้วย AI";
+                                    } catch (e: any) {
+                                        alert("เกิดข้อผิดพลาด: " + e.message);
+                                        const btn = document.getElementById("analyze-btn");
+                                        if (btn) btn.innerText = "✨ วิเคราะห์ภาพด้วย AI";
+                                    }
+                                }}
+                                id="analyze-btn"
+                                className="text-[10px] bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-2 py-1 rounded-md transition-colors flex items-center gap-1"
+                            >
+                                <Sparkles className="w-3 h-3" />
+                                วิเคราะห์ภาพด้วย AI
+                            </button>
+                        </div>
                         <textarea
                             {...register("aiPrompt")}
                             placeholder="ระบุรายละเอียดเพิ่มเติม เช่น จุดเด่นที่ต้องการเน้น, คำที่ต้องการใช้, สิ่งที่ต้องการหลีกเลี่ยง..."
-                            rows={3}
+                            rows={4}
                             disabled={isAiMode}
                             className={`w-full neon-textarea transition-all ${isAiMode ? 'opacity-50 cursor-not-allowed' : ''}`}
                         />

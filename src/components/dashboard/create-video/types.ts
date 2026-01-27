@@ -13,6 +13,7 @@ export interface SectionProps {
 export interface AiScriptSectionProps extends SectionProps {
     isOpen: boolean;
     onToggle: () => void;
+    productImages: (string | null)[];
 }
 
 export interface CharacterStyleSectionProps extends SectionProps {

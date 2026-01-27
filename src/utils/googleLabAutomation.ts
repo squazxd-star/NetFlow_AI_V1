@@ -8,16 +8,49 @@ import { RemoteConfigService, AutomationSelectors } from './remoteConfig';
 // --- Utilities ---
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Helper: Recursive Shadow DOM Search
+const findAllElementsDeep = (selector: string = '*', root: Document | ShadowRoot | Element = document): Element[] => {
+    let elements: Element[] = [];
+
+    // 1. Get elements in current root
+    try {
+        const nodes = (root as ParentNode).querySelectorAll(selector);
+        elements.push(...Array.from(nodes));
+    } catch (e) { }
+
+    // 2. Traverse Shadow Roots
+    const walker = document.createTreeWalker(
+        root === document ? document.body : (root as Node),
+        NodeFilter.SHOW_ELEMENT,
+        {
+            acceptNode: (node) => (node as Element).shadowRoot ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP
+        }
+    );
+
+    while (walker.nextNode()) {
+        const shadowRoot = (walker.currentNode as Element).shadowRoot;
+        if (shadowRoot) {
+            elements.push(...findAllElementsDeep(selector, shadowRoot));
+        }
+    }
+
+    return elements;
+};
+
 // Helper: Click element by text (supports array of triggers)
 const clickByText = async (searchText: string | string[], tagFilter?: string): Promise<boolean> => {
     const targets = Array.isArray(searchText) ? searchText : [searchText];
-    const elements = document.querySelectorAll(tagFilter || 'button, div, span, label, a');
+    // Use Deep Search instead of shallow querySelectorAll
+    const elements = findAllElementsDeep(tagFilter || 'button, div, span, label, a');
 
     for (const el of elements) {
         const text = el.textContent?.trim() || '';
+        // Exact or partial match
         if (targets.some(t => text.includes(t))) {
+            console.log(`✅ Found "${text}", clicking...`);
             (el as HTMLElement).click();
-            console.log(`✅ Clicked: "${text}" (Matches trigger)`);
+            // Also try clicking parent to be safe (often button is inside a wrapper)
+            if (el.parentElement) (el.parentElement as HTMLElement).click();
             return true;
         }
     }
@@ -26,7 +59,7 @@ const clickByText = async (searchText: string | string[], tagFilter?: string): P
 
 // --- Upload Single Image with Aggressive Fallback ---
 const uploadSingleImage = async (base64Image: string, imageIndex: number, selectors: AutomationSelectors): Promise<boolean> => {
-    console.log(`📷 Uploading image ${imageIndex} (Aggressive mode)...`);
+    console.log(`📷 Uploading image ${imageIndex} (Robust Deep Search)...`);
 
     // Convert base64 to File
     const arr = base64Image.split(',');
@@ -40,78 +73,48 @@ const uploadSingleImage = async (base64Image: string, imageIndex: number, select
     const filename = imageIndex === 1 ? 'character.png' : 'product.png';
     const file = new File([u8arr], filename, { type: mime });
 
-    // STRATEGY 1: Direct Input Injection
-    const allInputs = document.querySelectorAll('input[type="file"]');
-    let injected = false;
+    // Robust Injection Loop
+    for (let attempt = 0; attempt < 5; attempt++) {
+        await delay(1000); // Wait for potential UI load
+        const allInputs = findAllElementsDeep('input[type="file"]');
+        console.log(`🔎 Attempt ${attempt + 1}: Found ${allInputs.length} file inputs`);
 
-    for (const input of allInputs) {
-        try {
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(file);
-            (input as HTMLInputElement).files = dataTransfer.files;
-            input.dispatchEvent(new Event('change', { bubbles: true }));
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            injected = true;
-        } catch (e) { }
-    }
-
-    if (injected) {
-        await delay(1500);
-        if (await clickByText(selectors.upload.cropSaveTriggers)) {
-            return true;
-        }
-    }
-
-    // STRATEGY 2: UI Interaction
-    if (!injected) {
-        // Try clicking upload buttons defined in config first
-        if (await clickByText(selectors.upload.uploadButtonTriggers)) {
-            await delay(1000);
-        } else {
-            // Fallback to finding plus buttons manually if config text fails
-            const plusButtons = Array.from(document.querySelectorAll('button, div, [role="button"]')).filter(el => {
-                const text = el.textContent?.trim();
-                return (text === '+' || text === '＋' ||
-                    (el.tagName === 'BUTTON' && el.clientWidth < 80 && el.innerHTML.includes('<svg')));
-            });
-
-            for (const btn of plusButtons) {
-                if (btn.clientWidth > 0 && btn.clientWidth < 100) {
-                    (btn as HTMLElement).click();
-                    await delay(800);
+        if (allInputs.length > 0) {
+            let injected = false;
+            for (const input of allInputs) {
+                try {
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    (input as HTMLInputElement).files = dataTransfer.files;
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    injected = true;
+                    console.log("✅ File injected successfully");
+                } catch (e) {
+                    console.error("Injection failed:", e);
                 }
             }
-            // Try standard "Upload" text again after clicking plus
-            await clickByText(selectors.upload.uploadButtonTriggers);
-        }
-        await delay(500);
-
-        const inputsAfterClick = document.querySelectorAll('input[type="file"]');
-        for (const input of inputsAfterClick) {
-            const dt = new DataTransfer();
-            dt.items.add(file);
-            (input as HTMLInputElement).files = dt.files;
-            input.dispatchEvent(new Event('change', { bubbles: true }));
-            injected = true;
+            if (injected) {
+                await delay(1500);
+                if (await clickByText(selectors.upload.cropSaveTriggers)) return true;
+                return true;
+            }
+        } else {
+            console.log("�️ Inputs not found, trying fallback clicks to reveal...");
+            // Try clicking "Upload" buttons to trigger input existence
+            if (await clickByText(selectors.upload.uploadButtonTriggers)) {
+                continue; // Retry loop after click
+            }
         }
     }
 
-    await delay(1500);
-    // Try to close crop dialog
-    for (let i = 0; i < 10; i++) {
-        if (await clickByText(selectors.upload.cropSaveTriggers)) {
-            return true;
-        }
-        await delay(500);
-    }
-
-    return injected;
+    console.warn("⚠️ All upload attempts failed");
+    return false;
 };
 
 // --- Helper: Check if we are in Workspace ---
 const isInWorkspace = (selectors: AutomationSelectors): boolean => {
-    // Look for "Image" tab which indicates workspace
-    const tabs = document.querySelectorAll('button, div[role="tab"], span');
+    const tabs = findAllElementsDeep('button, div[role="tab"], span'); // Deep Search
     for (const tab of tabs) {
         const text = tab.textContent?.trim() || '';
         if (selectors.workspace.imageTabTriggers.some(t => text.includes(t))) {
@@ -129,19 +132,85 @@ const switchToImageTab = async (selectors: AutomationSelectors): Promise<boolean
 
 // --- Fill Prompt ---
 const fillPromptAndGenerate = async (prompt: string): Promise<boolean> => {
-    const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
-    if (textarea) {
-        textarea.value = prompt;
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-        await delay(500);
-        const buttons = Array.from(document.querySelectorAll('button'));
-        for (const btn of buttons.reverse()) {
-            // Heuristic: Submit buttons usually have SVGs (arrow/send) and are smallish
-            if (btn.querySelector('svg') && btn.clientWidth < 60) {
-                btn.click();
-                return true;
+    console.log("📝 Attempting to fill prompt...");
+
+    // 1. Try standard textarea
+    let inputEl: HTMLElement | null = null;
+    const textareas = findAllElementsDeep('textarea');
+    if (textareas.length > 0) inputEl = textareas[0] as HTMLElement;
+
+    // 2. Try contenteditable div (common in modern AI apps)
+    if (!inputEl) {
+        const editables = findAllElementsDeep('div[contenteditable="true"], [role="textbox"], span[data-placeholder]');
+        // Helper to check placeholder text (Thai & English)
+        const isPromptBox = (el: Element) => {
+            const txt = (el.textContent || '').toLowerCase();
+            const placeholder = (el.getAttribute('data-placeholder') || '').toLowerCase();
+            const knownPlaceholders = ['สร้างวิดีโอที่มีข้อความ', 'type a prompt', 'describe', 'create video'];
+            return knownPlaceholders.some(p => txt.includes(p) || placeholder.includes(p));
+        };
+
+        // Prioritize element with matching placeholder
+        const match = editables.find(isPromptBox);
+        if (match) {
+            inputEl = match as HTMLElement;
+        } else if (editables.length > 0) {
+            inputEl = editables[0] as HTMLElement;
+        }
+    }
+
+    if (inputEl) {
+        console.log(`📝 Found prompt area (${inputEl.tagName}), typing...`);
+
+        // Focus and clear first
+        inputEl.focus();
+        if (inputEl.tagName === 'TEXTAREA' || inputEl.tagName === 'INPUT') {
+            (inputEl as HTMLInputElement).value = prompt;
+        } else {
+            inputEl.innerText = prompt;
+        }
+
+        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+        inputEl.dispatchEvent(new Event('change', { bubbles: true })); // Add change event
+
+        // Simulate real typing (sometimes required)
+        const opts = { bubbles: true, cancelable: true, view: window };
+        inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', ...opts }));
+        inputEl.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', code: 'Space', ...opts }));
+
+        await delay(800);
+
+        // Find submit button deeply
+        const buttons = findAllElementsDeep('button');
+        let clicked = false;
+
+        // Strategy A: Look for "Generate" text or similar
+        const generateKeywords = ['generate', 'create', 'run', 'make'];
+        for (const btn of buttons) {
+            const text = btn.textContent?.toLowerCase() || '';
+            if (generateKeywords.some(w => text.includes(w)) && btn.clientWidth > 0) {
+                console.log("🚀 Clicking generate button (Text Match)...");
+                (btn as HTMLElement).click();
+                clicked = true;
+                break;
             }
         }
+
+        // Strategy B: SVG/Icon heuristic (Previous logic)
+        if (!clicked) {
+            for (const btn of buttons.reverse()) {
+                if (btn.querySelector('svg') && btn.clientWidth < 100 && btn.clientWidth > 20) {
+                    console.log("🚀 Clicking generate button (Icon Heuristic)...");
+                    (btn as HTMLElement).click();
+                    clicked = true;
+                    break;
+                }
+            }
+        }
+
+        return clicked;
+    } else {
+        console.warn("⚠️ Textarea/Input not found!");
     }
     return false;
 };
@@ -150,12 +219,18 @@ const fillPromptAndGenerate = async (prompt: string): Promise<boolean> => {
 const waitForGenerationComplete = async (selectors: AutomationSelectors, timeout = 180000): Promise<boolean> => {
     const startTime = Date.now();
     while (Date.now() - startTime < timeout) {
+        // Quick check for 100% text
         const percentMatch = document.body.innerText.match(/(\d+)%/);
         if (percentMatch && parseInt(percentMatch[1]) >= 100) return true;
-        if (Array.from(document.querySelectorAll('*')).some(el => {
+
+        // Deep search for completion triggers
+        const allElements = findAllElementsDeep('*');
+        if (allElements.some(el => {
             const txt = el.textContent || '';
+            // Check for "Add to prompt" or specific completion text
             return selectors.generation.addToPromptTriggers.some(t => txt.includes(t));
         })) return true;
+
         await delay(2000);
     }
     return false;
@@ -164,20 +239,30 @@ const waitForGenerationComplete = async (selectors: AutomationSelectors, timeout
 const waitForVideoComplete = async (timeout = 300000): Promise<string | null> => {
     const startTime = Date.now();
     while (Date.now() - startTime < timeout) {
-        const v = document.querySelector('video');
-        if (v && v.src && v.src.length > 50) return v.src;
+        // Deep search for video element
+        const videos = findAllElementsDeep('video');
+        for (const v of videos) {
+            const vid = v as HTMLVideoElement;
+            if (vid.src && vid.src.length > 50) return vid.src;
+        }
         await delay(5000);
     }
     return null;
 };
 
 const clickOnGeneratedImage = async (): Promise<boolean> => {
-    const images = document.querySelectorAll('img');
+    const images = findAllElementsDeep('img');
     for (const img of images) {
-        if (img.width > 200 && img.height > 200) {
-            const parent = img.closest('button, a, [role="button"], div');
-            if (parent) (parent as HTMLElement).click();
-            return true;
+        const image = img as HTMLImageElement;
+        if (image.width > 200 && image.height > 200) {
+            const parent = image.closest('button, a, [role="button"], div');
+            if (parent) {
+                (parent as HTMLElement).click();
+                return true;
+            } else {
+                image.click(); // Try clicking image itself
+                return true;
+            }
         }
     }
     return false;
@@ -216,11 +301,14 @@ export const runTwoStagePipeline = async (config: PipelineConfig): Promise<{
 
             // Loop until we get in, or timeout (try for 10 seconds)
             for (let attempt = 0; attempt < 10; attempt++) {
-                // STRATEGY: Text Search using Remote Triggers
+                // STRATEGY: Text Search using Remote Triggers + Deep Search
                 const dashboardKeywords = selectors.dashboard.newProjectTriggers;
 
+                // Use Deep Search for "New Project" buttons too
+                const allElements = findAllElementsDeep('*');
+
                 for (const kw of dashboardKeywords) {
-                    const elements = Array.from(document.querySelectorAll('*')).filter(el =>
+                    const elements = allElements.filter(el =>
                         el.children.length === 0 && el.textContent?.includes(kw)
                     );
                     for (const el of elements) {

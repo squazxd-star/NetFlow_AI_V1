@@ -106,7 +106,7 @@ Output ONLY the script dialogue. No metadata.
  * Uses GPT-4o Vision to analyze the product image (and optional character) to generate a highly detailed prompt
  * @param totalDuration - Total video duration in seconds (default 8)
  */
-const generateVisualPrompt = async (apiKey: string, imageBase64: string, productName: string, style: string, characterImage?: string, totalDuration: number = 8): Promise<string> => {
+export const generateVisualPrompt = async (apiKey: string, imageBase64: string, productName: string, style: string, characterImage?: string, totalDuration: number = 8): Promise<string> => {
     console.log(`👁️ Analyzing Product (and Character) with GPT-4o Vision... Duration: ${totalDuration}s`);
 
     try {
