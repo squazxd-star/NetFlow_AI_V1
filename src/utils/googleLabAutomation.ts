@@ -61,51 +61,75 @@ const clickByText = async (searchText: string | string[], tagFilter?: string): P
 const uploadSingleImage = async (base64Image: string, imageIndex: number, selectors: AutomationSelectors): Promise<boolean> => {
     console.log(`📷 Uploading image ${imageIndex} (Robust Deep Search)...`);
 
-    // Convert base64 to File
-    const arr = base64Image.split(',');
-    const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while (n--) {
-        u8arr[n] = bstr.charCodeAt(n);
+    if (!base64Image) {
+        console.warn("⚠️ No Base64 image provided to uploadSingleImage");
+        return false;
     }
-    const filename = imageIndex === 1 ? 'character.png' : 'product.png';
-    const file = new File([u8arr], filename, { type: mime });
 
-    // Robust Injection Loop
-    for (let attempt = 0; attempt < 5; attempt++) {
-        await delay(1000); // Wait for potential UI load
-        const allInputs = findAllElementsDeep('input[type="file"]');
-        console.log(`🔎 Attempt ${attempt + 1}: Found ${allInputs.length} file inputs`);
+    try {
+        // Convert base64 to File
+        const arr = base64Image.split(',');
+        const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        const filename = imageIndex === 1 ? 'character.png' : 'product.png';
+        const file = new File([u8arr], filename, { type: mime });
 
-        if (allInputs.length > 0) {
-            let injected = false;
-            for (const input of allInputs) {
-                try {
-                    const dataTransfer = new DataTransfer();
-                    dataTransfer.items.add(file);
-                    (input as HTMLInputElement).files = dataTransfer.files;
-                    input.dispatchEvent(new Event('change', { bubbles: true }));
-                    input.dispatchEvent(new Event('input', { bubbles: true }));
-                    injected = true;
-                    console.log("✅ File injected successfully");
-                } catch (e) {
-                    console.error("Injection failed:", e);
+        console.log(`File matched: ${file.name}, ${file.size} bytes`);
+
+        // Robust Injection Loop
+        for (let attempt = 0; attempt < 5; attempt++) {
+            await delay(1000); // Wait for potential UI load
+
+            // Try 1: Find ANY file input
+            let allInputs = findAllElementsDeep('input[type="file"]');
+            console.log(`🔎 Attempt ${attempt + 1}: Found ${allInputs.length} file inputs`);
+
+            // Try 2: If no inputs, look for "Add" button to spawn it
+            if (allInputs.length === 0) {
+                console.log("️ Inputs not found, trying click triggers to reveal...");
+                await clickByText(selectors.upload.uploadButtonTriggers);
+                await delay(500);
+                allInputs = findAllElementsDeep('input[type="file"]');
+            }
+
+            if (allInputs.length > 0) {
+                let injected = false;
+                for (const input of allInputs) {
+                    try {
+                        // DataTransfer Hack
+                        const dataTransfer = new DataTransfer();
+                        dataTransfer.items.add(file);
+                        (input as HTMLInputElement).files = dataTransfer.files;
+
+                        // Event Storm to force React/Vue to notice
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        input.dispatchEvent(new Event('drop', { bubbles: true }));
+
+                        injected = true;
+                        console.log("✅ File injected into input:", input);
+                    } catch (e) {
+                        console.error("Injection failed on valid input:", e);
+                    }
+                }
+
+                if (injected) {
+                    await delay(1500);
+                    // Confirm crop/upload modal if it appears
+                    if (await clickByText(selectors.upload.cropSaveTriggers)) {
+                        console.log("✅ Confirmed upload modal");
+                    }
+                    return true;
                 }
             }
-            if (injected) {
-                await delay(1500);
-                if (await clickByText(selectors.upload.cropSaveTriggers)) return true;
-                return true;
-            }
-        } else {
-            console.log("️ Inputs not found, trying fallback clicks to reveal...");
-            // Try clicking "Upload" buttons to trigger input existence
-            if (await clickByText(selectors.upload.uploadButtonTriggers)) {
-                continue; // Retry loop after click
-            }
         }
+    } catch (e) {
+        console.error("Critical Upload Error:", e);
     }
 
     console.warn("⚠️ All upload attempts failed");

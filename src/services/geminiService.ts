@@ -113,23 +113,28 @@ export const generateVisualPrompt = async (apiKey: string, imageBase64: string, 
         const messagesContent: any[] = [
             {
                 type: "text",
-                text: `Analyze these images. 
-                Image 1: The Product.
-                ${characterImage ? "Image 2: The Character/Presenter." : ""}
+                text: `Analyze these images to create a VIDEO GENERATION PROMPT.
                 
-                1. Identify the EXACT Product Name / Brand from the text on the package (if any).
-                2. Create a HIGHLY DETAILED, CINEMATIC video generation prompt for a single **${totalDuration}-second continuous shot**.
-                   ${characterImage ? "- **INTEGRATION**: Describe the Character (Image 2) interacting with the Product (Image 1) naturally." : ""}
-                   - Focus on **CAMERA MOVEMENT** (e.g., "Slow smooth pan", "Rack focus", "Dolly in").
-                   - Describe **LIGHTING & ATMOSPHERE** (e.g., "Golden hour", "Neon rim light", "Soft diffusion").
-                   - Describe **ACTION** (e.g., "Smoke swirling", "Water droplets falling", "Fabric flowing").
-                   - **DO NOT** use "cuts" or "scenes". Write one fluid visual description that lasts ${totalDuration} seconds.
-                   - **PACING**: Structure the narrative to fill exactly ${totalDuration} seconds${totalDuration > 8 ? `, roughly ${Math.ceil(totalDuration / 8)} distinct visual moments smoothly transitioning into each other` : ""}.
-                   - Style: ${style}.
+                GOAL: Create a prompt for a high-end video generator (like Haiper, Runway, or Google Veo) that will animate these specific subjects.
+
+                Input Images:
+                - Image 1: Product (${productName})
+                ${characterImage ? "- Image 2: Character/Presenter (Reference Face)" : ""}
+
+                INSTRUCTIONS:
+                1. **Product**: Describe the product in Image 1 exactly (color, shape, packaging type).
+                ${characterImage ? `2. **Character**: Describe the person in Image 2 exactly (hair style, color, facial features, skin tone, clothing). THIS IS CRITICAL for consistency.` : ""}
+                3. **Action**: Create a ${totalDuration}-second continuous shot.
+                   - Movement: ${style || "Cinematic, smooth camera movement"}.
+                   - Lighting: Professional studio or natural cinematic.
+                   - Interaction: ${characterImage ? "The character is holding/presenting the product naturally." : "The product is showcased with elegant camera movement."}
                 
-                Output format strictly:
-                Name: [Identified Name or "Unknown"]
-                Prompt: [Visual Description... (in English)]`
+                4. **Format**: Return ONLY the raw English prompt text. Do not include "Name:" or "Prompt:" labels.
+                
+                STRICT CONSTRAINT:
+                - NO text overlays.
+                - NO cartoon effects (unless style specifies).
+                - Keep it photorealistic.`
             },
             {
                 type: "image_url",
@@ -165,13 +170,20 @@ export const generateVisualPrompt = async (apiKey: string, imageBase64: string, 
         const json = await response.json();
         if (json.error || !json.choices) {
             console.warn("Vision API Error:", json.error);
-            return `Name: Unknown\nPrompt: Cinematic shot of ${productName || "product"}, ${style} style, professional lighting`;
+            return `Cinematic shot of ${productName}, ${style} style, professional lighting, 8k resolution`;
         }
-        return json.choices[0].message.content;
+
+        let content = json.choices[0].message.content;
+
+        // Cleanup: First remove Name line, THEN remove Prompt prefix
+        content = content.replace(/^Name:.*?\n/i, "").trim();
+        content = content.replace(/^Prompt:\s*/i, "");
+
+        return content.trim();
 
     } catch (e) {
         console.error("Vision Analysis Failed:", e);
-        return `Name: Unknown\nPrompt: Cinematic shot of ${productName || "product"}, ${style} style, professional lighting`;
+        return `Cinematic shot of ${productName}, ${style} style, professional lighting`;
     }
 };
 
@@ -443,24 +455,14 @@ export const runFullWorkflow = async (data: ScriptRequest | AdvancedVideoRequest
             if (apiKey) {
                 const visionRes = await generateVisualPrompt(apiKey, advData.userImage, advData.productName, advData.style, advData.characterImage, totalDuration);
                 if (visionRes) {
-                    // Parse logic: "Name: [xxx]\nPrompt: [yyy]"
-                    const nameMatch = visionRes.match(/Name:\s*(.+)/i);
-                    const promptMatch = visionRes.match(/Prompt:\s*([\s\S]+)/i);
+                    console.log(`✅ Smart Vision found prompt: ${visionRes.substring(0, 50)}...`);
 
-                    const extractedName = nameMatch ? nameMatch[1].trim() : "Unknown";
-                    const extractedPrompt = promptMatch ? promptMatch[1].trim() : visionRes; // Fallback to whole text
-
-                    console.log(`✅ Smart Vision found: Name=[${extractedName}]`);
-
-                    // Update Data
-                    if (extractedName && extractedName !== "Unknown" && (!advData.productName || advData.productName === "สินค้าทั่วไป")) {
-                        advData.productName = extractedName;
-                    }
-                    advData.prompt = extractedPrompt;
+                    // Since we now return just the prompt string
+                    advData.prompt = visionRes;
 
                     // Inject into Product Description for Script Writer (Context)
                     if (!advData.productDescription) advData.productDescription = "";
-                    advData.productDescription += `\n\n[Visual Details]: ${extractedPrompt}`;
+                    advData.productDescription += `\n\n[Visual Details]: ${visionRes}`;
 
                     generatedPrompt = `[Smart Vision]: ${visionRes}`;
                 }
