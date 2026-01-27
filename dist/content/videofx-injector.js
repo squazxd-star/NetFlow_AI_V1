@@ -1,0 +1,491 @@
+/**
+ * VideoFX Injector - Content Script
+ * Automates Google VideoFX for free video generation
+ * 
+ * Target: https://labs.google/fx/tools/video-fx
+ */
+
+console.log("[VideoFX Injector] Content script loaded");
+
+// Notify service worker that page is ready
+function notifyReady() {
+    chrome.runtime.sendMessage({ type: "VIDEOFX_READY" });
+}
+
+// Wait for element to appear with timeout
+function waitForElement(selector, timeout = 30000) {
+    return new Promise((resolve, reject) => {
+        const startTime = Date.now();
+
+        const check = () => {
+            const element = document.querySelector(selector);
+            if (element) {
+                resolve(element);
+                return;
+            }
+
+            if (Date.now() - startTime > timeout) {
+                reject(new Error(`Timeout waiting for: ${selector}`));
+                return;
+            }
+
+            requestAnimationFrame(check);
+        };
+
+        check();
+    });
+}
+
+// Wait for page to fully load
+function waitForPageLoad() {
+    return new Promise((resolve) => {
+        if (document.readyState === 'complete') {
+            setTimeout(resolve, 2000); // Extra delay for React/SPA
+        } else {
+            window.addEventListener('load', () => {
+                setTimeout(resolve, 2000);
+            });
+        }
+    });
+}
+
+// Simulate human-like typing
+function typeText(element, text) {
+    element.focus();
+
+    // Clear existing content
+    element.value = '';
+    element.textContent = '';
+
+    // Use execCommand for contenteditable elements
+    if (element.contentEditable === 'true') {
+        document.execCommand('selectAll', false, null);
+        document.execCommand('insertText', false, text);
+    } else {
+        // For regular inputs/textareas
+        element.value = text;
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+}
+
+// Find the prompt textarea (try multiple selectors)
+async function findPromptInput() {
+    const selectors = [
+        'textarea[placeholder*="prompt"]',
+        'textarea[placeholder*="Prompt"]',
+        'textarea[placeholder*="video"]',
+        'textarea',
+        '[contenteditable="true"]',
+        'input[type="text"]'
+    ];
+
+    for (const selector of selectors) {
+        try {
+            const element = await waitForElement(selector, 5000);
+            if (element) {
+                console.log("[VideoFX] Found input with selector:", selector);
+                return element;
+            }
+        } catch (e) {
+            // Try next selector
+        }
+    }
+
+    throw new Error("Could not find prompt input");
+}
+
+// Find the generate button
+async function findGenerateButton() {
+    const selectors = [
+        'button[aria-label*="Generate"]',
+        'button[aria-label*="generate"]',
+        'button:contains("Generate")',
+        '[data-testid="generate-button"]',
+        'button[type="submit"]'
+    ];
+
+    // Also try by text content
+    const buttons = document.querySelectorAll('button');
+    for (const btn of buttons) {
+        const text = btn.textContent?.toLowerCase() || '';
+        if (text.includes('generate') || text.includes('create') || text.includes('สร้าง')) {
+            console.log("[VideoFX] Found button by text:", btn.textContent);
+            return btn;
+        }
+    }
+
+    for (const selector of selectors) {
+        try {
+            const element = await waitForElement(selector, 5000);
+            if (element) {
+                console.log("[VideoFX] Found button with selector:", selector);
+                return element;
+            }
+        } catch (e) {
+            // Try next selector
+        }
+    }
+
+    throw new Error("Could not find generate button");
+}
+
+// Enhanced visibility check that considers more edge cases
+function isVisible(el) {
+    if (!el) return false;
+    const style = window.getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+}
+
+// Highlight element for debugging
+function debugHighlight(el, color = 'red') {
+    if (!el) return;
+    el.style.border = `3px solid ${color}`;
+    el.style.boxShadow = `0 0 10px ${color}`;
+}
+
+// Aggressive bypass using scroll, wait, and coordinate-based clicking
+async function bypassSplashScreens() {
+    console.log("[VideoFX] CRITICAL: Starting aggressive bypass v2...");
+
+    // EARLY EXIT: Check if we're already in the editor
+    if (isAlreadyInEditor()) {
+        console.log("[VideoFX] Already in editor! Skipping bypass...");
+        return;
+    }
+
+    // STEP 1: Wait for page to fully stabilize (SPA takes time to render)
+    console.log("[VideoFX] Waiting 3 seconds for page to fully render...");
+    await new Promise(r => setTimeout(r, 3000));
+
+    // STEP 2: Scroll down to reveal the "New Project" button (it's hidden below banner)
+    window.scrollTo(0, 400);
+    console.log("[VideoFX] Scrolled down to reveal buttons...");
+    await new Promise(r => setTimeout(r, 1000));
+
+    // STEP 3: Try to find and click X button on the Nano Banana banner
+    const allButtons = document.querySelectorAll('button, [role="button"]');
+    for (const btn of allButtons) {
+        const text = btn.textContent?.trim() || '';
+        const ariaLabel = btn.getAttribute('aria-label') || '';
+
+        // Close button on banner
+        if (text === 'X' || text === '×' || ariaLabel.toLowerCase().includes('close') || ariaLabel.toLowerCase().includes('dismiss')) {
+            if (isVisible(btn)) {
+                console.log("[VideoFX] Found close button, clicking:", text || ariaLabel);
+                debugHighlight(btn, 'yellow');
+                btn.click();
+                await new Promise(r => setTimeout(r, 1500));
+            }
+        }
+    }
+
+    // STEP 4: Look for anything containing "โปรเจกต์ใหม่" or "New project" text
+    const allElements = document.querySelectorAll('*');
+    for (const el of allElements) {
+        if (el.children.length > 5) continue; // Skip complex containers
+
+        const text = el.textContent?.trim().toLowerCase() || '';
+        if (text.includes('โปรเจกต์ใหม่') || text.includes('new project') || text === '+' || text === '+ โปรเจกต์ใหม่') {
+            if (isVisible(el) && el.offsetHeight < 200) { // Avoid clicking the whole page
+                console.log("[VideoFX] Found 'New Project' element:", el.textContent?.trim());
+                debugHighlight(el, 'lime');
+
+                // Try clicking directly
+                el.click();
+                await new Promise(r => setTimeout(r, 2000));
+
+                // Check if we entered editor
+                if (document.querySelector('textarea[placeholder]')) {
+                    console.log("[VideoFX] Successfully entered editor!");
+                    return;
+                }
+
+                // If click didn't work, try dispatching events manually
+                el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+                await new Promise(r => setTimeout(r, 2000));
+
+                if (document.querySelector('textarea[placeholder]')) {
+                    console.log("[VideoFX] Entered editor after forced click!");
+                    return;
+                }
+            }
+        }
+    }
+
+    // STEP 5: FALLBACK - Click at center-bottom of visible area (where the button appears)
+    console.log("[VideoFX] FALLBACK: Attempting coordinate-based click...");
+    const centerX = window.innerWidth / 2;
+    const bottomY = window.innerHeight - 150; // Near bottom of visible area
+
+    const elementAtCenter = document.elementFromPoint(centerX, bottomY);
+    if (elementAtCenter) {
+        console.log("[VideoFX] Found element at center-bottom:", elementAtCenter.tagName, elementAtCenter.textContent?.substring(0, 30));
+        debugHighlight(elementAtCenter, 'orange');
+        elementAtCenter.click();
+        await new Promise(r => setTimeout(r, 2000));
+    }
+}
+
+// Check if we are already in the editor (has prompt input visible)
+function isAlreadyInEditor() {
+    // Look for Thai placeholder text or English placeholder
+    const allElements = document.querySelectorAll('textarea, [contenteditable="true"], input[type="text"]');
+    for (const el of allElements) {
+        if (!isVisible(el)) continue;
+
+        const placeholder = el.getAttribute('placeholder') || '';
+        const innerText = el.textContent || el.innerText || '';
+
+        // Check for Thai or English placeholder indicators
+        if (placeholder.includes('พิมพ์') || placeholder.includes('พรอมต์') ||
+            placeholder.includes('Describe') || placeholder.includes('prompt') ||
+            innerText.includes('พิมพ์ในช่องพรอมต์')) {
+            return true;
+        }
+
+        // Also check if there's a visible textarea with decent size
+        if (el.tagName === 'TEXTAREA' && el.offsetHeight > 50) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Find the prompt textarea with high-level retry and multiple strategies
+async function findPromptInput() {
+    console.log("[VideoFX] Searching for target input area...");
+
+    for (let attempt = 0; attempt < 10; attempt++) {
+        // Strategy A: Find by Thai placeholder text
+        const allInputs = document.querySelectorAll('textarea, [contenteditable="true"], input[type="text"]');
+        for (const el of allInputs) {
+            if (!isVisible(el)) continue;
+
+            const placeholder = el.getAttribute('placeholder') || '';
+            const innerText = el.textContent || el.innerText || '';
+
+            // Match Thai or English placeholders
+            if (placeholder.includes('พิมพ์') || placeholder.includes('พรอมต์') ||
+                placeholder.includes('Describe') || placeholder.includes('prompt') ||
+                innerText.includes('พิมพ์ในช่องพรอมต์')) {
+                console.log("[VideoFX] Found input via Thai/EN placeholder!");
+                debugHighlight(el, 'blue');
+                return el;
+            }
+        }
+
+        // Strategy B: Any visible textarea or contenteditable with good size
+        for (const el of allInputs) {
+            if (isVisible(el) && el.offsetHeight > 40) {
+                console.log("[VideoFX] Found input via size check:", el.tagName);
+                debugHighlight(el, 'blue');
+                return el;
+            }
+        }
+
+        // Strategy C: XPath search for placeholder text (English fallback)
+        const xpathQuery = "//*[contains(@placeholder, 'Describe') or contains(@placeholder, 'video') or contains(@placeholder, 'พิมพ์')]";
+        const res = document.evaluate(xpathQuery, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        if (res.singleNodeValue && isVisible(res.singleNodeValue)) {
+            console.log("[VideoFX] Found input via XPath Strategy");
+            debugHighlight(res.singleNodeValue, 'blue');
+            return res.singleNodeValue;
+        }
+
+        // Strategy D: If we still can't find it after 3 attempts, try bypass again
+        if (attempt === 3 || attempt === 7) {
+            console.log("[VideoFX] Still not finding input, retrying landing page bypass...");
+            await bypassSplashScreens();
+        }
+
+        await new Promise(r => setTimeout(r, 1500));
+    }
+
+    throw new Error("Unable to find prompt input. Please make sure you are in the Video Editor.");
+}
+
+// Find the generate button
+async function findGenerateButton() {
+    console.log("[VideoFX] Searching for generate button...");
+
+    // Buttons to EXCLUDE (these are tool buttons, not the main Generate button)
+    const excludeKeywords = ['เครื่องมือ', 'ฉาก', 'tool', 'scene', 'setting', 'option'];
+
+    // Helper to check if button should be excluded
+    const shouldExclude = (text) => {
+        const lowerText = text.toLowerCase();
+        return excludeKeywords.some(keyword => lowerText.includes(keyword.toLowerCase()));
+    };
+
+    // Priority 1: Find button with aria-label containing Generate/สร้าง
+    const ariaButtons = document.querySelectorAll('button[aria-label*="Generate"], button[aria-label*="generate"], button[aria-label*="สร้าง"]');
+    for (const btn of ariaButtons) {
+        if (isVisible(btn) && !shouldExclude(btn.textContent || '')) {
+            console.log("[VideoFX] Found button via aria-label:", btn.getAttribute('aria-label'));
+            debugHighlight(btn, 'green');
+            return btn;
+        }
+    }
+
+    // Priority 2: Find button with submit type (usually the main action button)
+    const submitButtons = document.querySelectorAll('button[type="submit"]');
+    for (const btn of submitButtons) {
+        if (isVisible(btn) && !shouldExclude(btn.textContent || '')) {
+            console.log("[VideoFX] Found submit button");
+            debugHighlight(btn, 'green');
+            return btn;
+        }
+    }
+
+    // Priority 3: Find button with exact "สร้าง" text (not "เครื่องมือสร้างฉาก")
+    const buttons = document.querySelectorAll('button');
+    for (const btn of buttons) {
+        const text = btn.textContent?.trim() || '';
+
+        // Skip if it contains excluded keywords
+        if (shouldExclude(text)) continue;
+
+        // Match if text is exactly "สร้าง" or contains "generate"
+        if (text === 'สร้าง' || text.toLowerCase() === 'generate' ||
+            (text.includes('สร้าง') && !text.includes('เครื่องมือ') && !text.includes('ฉาก'))) {
+            if (isVisible(btn)) {
+                console.log("[VideoFX] Found button with exact match:", text);
+                debugHighlight(btn, 'green');
+                return btn;
+            }
+        }
+    }
+
+    // Priority 4: Look for a primary/prominent button (often styled differently)
+    for (const btn of buttons) {
+        const text = btn.textContent?.trim().toLowerCase() || '';
+        const className = btn.className?.toLowerCase() || '';
+
+        // Skip excluded buttons
+        if (shouldExclude(text)) continue;
+
+        // Look for primary/action buttons
+        if ((className.includes('primary') || className.includes('action') || className.includes('submit')) &&
+            (text.includes('generate') || text.includes('create') || text.includes('สร้าง'))) {
+            if (isVisible(btn)) {
+                console.log("[VideoFX] Found primary action button:", text);
+                debugHighlight(btn, 'green');
+                return btn;
+            }
+        }
+    }
+
+    throw new Error("Could not find generate button. Please click the 'สร้าง' button manually.");
+}
+
+// Watch for video element to appear
+async function waitForVideo() {
+    console.log("[VideoFX] Waiting for video to generate...");
+
+    const maxWait = 5 * 60 * 1000; // 5 minutes
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWait) {
+        // Look for video element
+        const video = document.querySelector('video[src]');
+        if (video && video.src && !video.src.startsWith('blob:')) {
+            console.log("[VideoFX] Video found with source URL:", video.src);
+            return video.src;
+        }
+
+        // Look for download link (often the most reliable way to get URL)
+        const downloadBtn = document.querySelector('a[download], button[aria-label*="download"], button[aria-label*="Download"]');
+        if (downloadBtn) {
+            const href = downloadBtn.href || downloadBtn.getAttribute('data-url');
+            if (href && !href.startsWith('blob:')) {
+                console.log("[VideoFX] Download link found:", href);
+                return href;
+            }
+        }
+
+        // If only blob is found, try to capture it (though we prefer direct URLs for TikTok)
+        const blobVideo = document.querySelector('video[src^="blob:"]');
+        if (blobVideo && blobVideo.src) {
+            // We'll let it wait a bit more to see if a real URL appears, 
+            // but if we hit 4 mins, we take the blob.
+            if (Date.now() - startTime > 4 * 60 * 1000) {
+                console.log("[VideoFX] Taking blob source as last resort:", blobVideo.src);
+                return blobVideo.src;
+            }
+        }
+
+        // Check for error messages on page
+        const errorElement = document.querySelector('[class*="error"], [class*="Error"]');
+        if (errorElement && isVisible(errorElement) && errorElement.textContent?.length > 10) {
+            throw new Error("VideoFX Cloud Error: " + errorElement.textContent);
+        }
+
+        await new Promise(r => setTimeout(r, 4000));
+    }
+
+    throw new Error("Video generation timed out (Check your Google account/credits)");
+}
+
+// Main automation flow
+async function runAutomation(prompt) {
+    try {
+        console.log("[VideoFX] Starting automation with prompt:", prompt);
+
+        // Step 0: Ensure we are in the editor and clear of overlays
+        await bypassSplashScreens();
+
+        // Step 1: Find and fill prompt
+        const input = await findPromptInput();
+        typeText(input, prompt);
+        console.log("[VideoFX] Prompt entered");
+
+        await new Promise(r => setTimeout(r, 1500));
+
+        // Step 2: Click generate
+        const generateBtn = await findGenerateButton();
+        generateBtn.click();
+        console.log("[VideoFX] Generate button clicked");
+
+        // Step 3: Wait for video
+        const videoUrl = await waitForVideo();
+        console.log("[VideoFX] Video success!");
+
+        // Step 4: Notify service worker
+        chrome.runtime.sendMessage({
+            type: "VIDEO_GENERATED",
+            videoUrl: videoUrl
+        });
+
+    } catch (error) {
+        console.error("[VideoFX] Automation error:", error);
+        chrome.runtime.sendMessage({
+            type: "GENERATION_ERROR",
+            error: error.message
+        });
+    }
+}
+
+// Listen for commands from service worker
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    console.log("[VideoFX] Received message:", message.type);
+
+    if (message.type === "INJECT_PROMPT") {
+        runAutomation(message.prompt);
+        sendResponse({ success: true });
+    }
+
+    return true;
+});
+
+// Initialize
+async function init() {
+    await waitForPageLoad();
+    console.log("[VideoFX] Page loaded, notifying service worker");
+    notifyReady();
+}
+
+init();
