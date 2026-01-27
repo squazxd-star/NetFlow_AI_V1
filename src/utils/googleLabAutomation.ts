@@ -134,10 +134,12 @@ const switchToImageTab = async (selectors: AutomationSelectors): Promise<boolean
 const fillPromptAndGenerate = async (prompt: string): Promise<boolean> => {
     console.log("📝 Attempting to fill prompt...");
 
-    // 1. Try standard textarea
+    // 1. Try standard textarea or input
     let inputEl: HTMLElement | null = null;
-    const textareas = findAllElementsDeep('textarea');
-    if (textareas.length > 0) inputEl = textareas[0] as HTMLElement;
+    const inputs = findAllElementsDeep('textarea, input[type="text"]');
+    // Filter visible inputs (height > 0)
+    const visibleInputs = inputs.filter(el => (el as HTMLElement).clientHeight > 0);
+    if (visibleInputs.length > 0) inputEl = visibleInputs[visibleInputs.length - 1] as HTMLElement; // Usually the last one is the chat input
 
     // 2. Try contenteditable div (common in modern AI apps)
     if (!inputEl) {
@@ -146,7 +148,14 @@ const fillPromptAndGenerate = async (prompt: string): Promise<boolean> => {
         const isPromptBox = (el: Element) => {
             const txt = (el.textContent || '').toLowerCase();
             const placeholder = (el.getAttribute('data-placeholder') || '').toLowerCase();
-            const knownPlaceholders = ['สร้างวิดีโอที่มีข้อความ', 'type a prompt', 'describe', 'create video'];
+            const knownPlaceholders = [
+                'สร้างวิดีโอที่มีข้อความ',
+                'type a prompt',
+                'describe',
+                'create video',
+                'พิมพ์ในช่องพร้อมต์เพื่อเริ่มต้น', // Text from screenshot
+                'describe your video'
+            ];
             return knownPlaceholders.some(p => txt.includes(p) || placeholder.includes(p));
         };
 
@@ -155,7 +164,9 @@ const fillPromptAndGenerate = async (prompt: string): Promise<boolean> => {
         if (match) {
             inputEl = match as HTMLElement;
         } else if (editables.length > 0) {
-            inputEl = editables[0] as HTMLElement;
+            // Heuristic: pick the one closest to the bottom of the screen? Or largest?
+            // Usually the main prompt box is quite large or at the bottom.
+            inputEl = editables[editables.length - 1] as HTMLElement;
         }
     }
 
@@ -164,48 +175,85 @@ const fillPromptAndGenerate = async (prompt: string): Promise<boolean> => {
 
         // Focus and clear first
         inputEl.focus();
+        await delay(200);
+
+        // Force value update
         if (inputEl.tagName === 'TEXTAREA' || inputEl.tagName === 'INPUT') {
             (inputEl as HTMLInputElement).value = prompt;
         } else {
             inputEl.innerText = prompt;
         }
 
+        // Dispatch comprehensive event suite
         inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-        inputEl.dispatchEvent(new Event('change', { bubbles: true })); // Add change event
+        inputEl.dispatchEvent(new Event('change', { bubbles: true }));
 
-        // Simulate real typing (sometimes required)
+        // Simulate real typing (essential for enabling the submit button)
         const opts = { bubbles: true, cancelable: true, view: window };
         inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', ...opts }));
+        inputEl.dispatchEvent(new KeyboardEvent('keypress', { key: ' ', code: 'Space', ...opts }));
         inputEl.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', code: 'Space', ...opts }));
 
-        await delay(800);
+        // Extra: dispatch a fake textInput event
+        try {
+            const textEvent = new InputEvent('textInput', {
+                data: ' ',
+                bubbles: true,
+                cancelable: true,
+            });
+            inputEl.dispatchEvent(textEvent);
+        } catch (e) { }
 
-        // Find submit button deeply
-        const buttons = findAllElementsDeep('button');
+        await delay(1500); // Wait for button to become enabled
+
+        // Find submit button deeply - Expanded to include div[role=button]
+        const buttons = findAllElementsDeep('button, div[role="button"]');
         let clicked = false;
 
-        // Strategy A: Look for "Generate" text or similar
-        const generateKeywords = ['generate', 'create', 'run', 'make'];
+        // Strategy A: Look for "Generate" text or ARIA labels
+        const generateKeywords = ['generate', 'create', 'run', 'make', 'send', 'submit', 'ส่ง', 'สร้าง'];
         for (const btn of buttons) {
-            const text = btn.textContent?.toLowerCase() || '';
-            if (generateKeywords.some(w => text.includes(w)) && btn.clientWidth > 0) {
-                console.log("🚀 Clicking generate button (Text Match)...");
+            const text = (btn.textContent || '').toLowerCase();
+            const label = (btn.getAttribute('aria-label') || '').toLowerCase();
+
+            if (generateKeywords.some(w => text.includes(w) || label.includes(w)) && btn.clientWidth > 0) {
+                console.log(`🚀 Clicking generate button (Match: "${text || label}")...`);
                 (btn as HTMLElement).click();
                 clicked = true;
                 break;
             }
         }
 
-        // Strategy B: SVG/Icon heuristic (Previous logic)
+        // Strategy B: Circular Arrow / Icon Heuristic (The screenshot shows a circle button with arrow)
         if (!clicked) {
-            for (const btn of buttons.reverse()) {
-                if (btn.querySelector('svg') && btn.clientWidth < 100 && btn.clientWidth > 20) {
-                    console.log("🚀 Clicking generate button (Icon Heuristic)...");
+            console.log(" Looking for Icon Button...");
+            // Filter for small-ish buttons that might be icons
+            const iconButtons = buttons.filter(btn => {
+                const w = btn.clientWidth;
+                const h = btn.clientHeight;
+                return w > 20 && w < 80 && h > 20 && h < 80; // Circle button logic
+            });
+
+            // Look for SVG inside
+            for (const btn of iconButtons.reverse()) { // Usually right-most or bottom-most
+                if (btn.querySelector('svg') || getComputedStyle(btn).borderRadius.includes('50%')) {
+                    // Check if it looks like the send button (right side of input usually)
+                    // This is a guess, but often safe if we just filled the prompt.
+                    console.log("🚀 Clicking generate button (Icon/Shape Heuristic)...");
                     (btn as HTMLElement).click();
                     clicked = true;
                     break;
                 }
             }
+        }
+
+        // Strategy C: Enter Key Fallback
+        if (!clicked) {
+            console.log("🎹 Trying Enter Key on Input...");
+            inputEl.focus();
+            inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
+            inputEl.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', bubbles: true }));
+            clicked = true;
         }
 
         return clicked;
