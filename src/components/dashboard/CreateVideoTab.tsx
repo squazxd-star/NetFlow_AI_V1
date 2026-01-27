@@ -308,12 +308,23 @@ const CreateVideoTab = () => {
 
                             try {
                                 if (typeof chrome !== 'undefined' && chrome.tabs) {
-                                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                                        if (tabs[0]?.id) {
-                                            chrome.tabs.sendMessage(tabs[0].id, {
+                                    // SEARCH FOR THE VIDEOFX TAB SPECIFICALLY
+                                    // The user might be on the dashboard tab, so 'active: true' targets WRONG tab.
+                                    chrome.tabs.query({ url: "*://labs.google/fx/tools/video-fx*" }, (tabs) => {
+                                        if (tabs && tabs.length > 0) {
+                                            const targetTab = tabs[0];
+                                            console.log("Found VideoFX Tab:", targetTab.id);
+
+                                            // Optional: Make it active so user sees it
+                                            chrome.tabs.update(targetTab.id!, { active: true });
+
+                                            chrome.tabs.sendMessage(targetTab.id!, {
                                                 type: 'TWO_STAGE_PIPELINE',
                                                 payload
                                             });
+                                        } else {
+                                            console.error("❌ VideoFX Tab not found! Please open Step 2 first.");
+                                            alert("ไม่พบหน้า Google VideoFX กรุณากดปุ่มในขั้นตอนที่ 2 ก่อนครับ");
                                         }
                                     });
                                 }
