@@ -1,71 +1,44 @@
 /**
- * Google Lab Automation Service - SHADOW DOM EDITION
- * Capabilities: Deep Shadow Root Traversal + Recursive Text Search
+ * Google Lab Automation Service - FINAL RECOVERY
+ * Capabilities: Smart State Detection + Keyboard/Pointer Fallbacks
  */
-
-import { RemoteConfigService, AutomationSelectors } from './remoteConfig';
 
 // --- Utilities ---
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// --- DEEP DOM SEARCH HELPER ---
-const getAllElementsDeep = (root: Document | ShadowRoot | Element = document): Element[] => {
-    const all: Element[] = [];
-    const walker = document.createTreeWalker(
-        root === document ? document.body : root as Node,
-        NodeFilter.SHOW_ELEMENT,
-        null
-    );
-
-    while (walker.nextNode()) {
-        const node = walker.currentNode as Element;
-        all.push(node);
-        if (node.shadowRoot) {
-            all.push(...getAllElementsDeep(node.shadowRoot));
-        }
-    }
-    return all;
-};
-
-// --- Deep Click by Text ---
-const deepClickByText = async (searchText: string): Promise<boolean> => {
-    console.log(`🔍 Deep searching for text "${searchText}"...`);
-    const all = getAllElementsDeep();
-
-    for (const el of all) {
+const clickByText = async (searchText: string, tagFilter?: string): Promise<boolean> => {
+    const elements = document.querySelectorAll(tagFilter || 'button, div, span, label, a');
+    for (const el of elements) {
         const text = el.textContent?.trim() || '';
-        const label = el.getAttribute('aria-label') || '';
-
-        if (text.includes(searchText) || label.includes(searchText)) {
-            const rect = el.getBoundingClientRect();
-            if (rect.width > 0 && rect.height > 0) {
-                console.log(`✅ Found deep element: <${el.tagName}> "${text.substring(0, 20)}..."`);
-                (el as HTMLElement).click();
-                if (el.parentElement) el.parentElement.click();
-                return true;
-            }
+        if (text.includes(searchText)) {
+            (el as HTMLElement).click();
+            console.log(`✅ Clicked: "${searchText}"`);
+            return true;
         }
     }
     return false;
 };
 
 // --- Upload Single Image with Aggressive Fallback ---
-const uploadSingleImage = async (base64Image: string, imageIndex: number, selectors: AutomationSelectors): Promise<boolean> => {
-    console.log(`📷 Uploading image ${imageIndex} (Deep mode)...`);
+const uploadSingleImage = async (base64Image: string, imageIndex: number): Promise<boolean> => {
+    console.log(`📷 Uploading image ${imageIndex} (Aggressive mode)...`);
 
+    // Convert base64 to File
     const arr = base64Image.split(',');
     const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
     const bstr = atob(arr[1]);
     let n = bstr.length;
     const u8arr = new Uint8Array(n);
-    while (n--) u8arr[n] = bstr.charCodeAt(n);
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
     const filename = imageIndex === 1 ? 'character.png' : 'product.png';
     const file = new File([u8arr], filename, { type: mime });
 
-    const allInputs = getAllElementsDeep().filter(el => el.tagName === 'INPUT' && (el as HTMLInputElement).type === 'file');
-    console.log(`🔍 Found ${allInputs.length} hidden file inputs`);
-
+    // STRATEGY 1: Direct Input Injection
+    const allInputs = document.querySelectorAll('input[type="file"]');
     let injected = false;
+
     for (const input of allInputs) {
         try {
             const dataTransfer = new DataTransfer();
@@ -77,76 +50,82 @@ const uploadSingleImage = async (base64Image: string, imageIndex: number, select
         } catch (e) { }
     }
 
-    // Try clicking crop/save if it appears immediately
     if (injected) {
         await delay(1500);
-        for (const trig of selectors.upload.cropSaveTriggers) {
-            if (await deepClickByText(trig)) return true;
+        if (await clickByText('ครอบตัดและบันทึก') || await clickByText('Crop and save')) {
+            return true;
         }
     }
 
-    // Fallback: Click Upload Button then retry
+    // STRATEGY 2: UI Interaction
     if (!injected) {
-        for (const trig of selectors.upload.uploadButtonTriggers) {
-            if (await deepClickByText(trig)) break;
+        const plusButtons = Array.from(document.querySelectorAll('button, div, [role="button"]')).filter(el => {
+            const text = el.textContent?.trim();
+            const html = el.innerHTML;
+            return (text === '+' || text === '＋' ||
+                (el.tagName === 'BUTTON' && el.clientWidth < 80 && el.innerHTML.includes('<svg')));
+        });
+
+        for (const btn of plusButtons) {
+            if (btn.clientWidth > 0 && btn.clientWidth < 100) {
+                (btn as HTMLElement).click();
+                await delay(800);
+            }
         }
-        await delay(1000);
-        // Retry input injection
-        const inputsRetry = getAllElementsDeep().filter(el => el.tagName === 'INPUT' && (el as HTMLInputElement).type === 'file');
-        for (const input of inputsRetry) {
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(file);
-            (input as HTMLInputElement).files = dataTransfer.files;
+
+        await clickByText('อัพโหลด');
+        await delay(500);
+
+        const inputsAfterClick = document.querySelectorAll('input[type="file"]');
+        for (const input of inputsAfterClick) {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            (input as HTMLInputElement).files = dt.files;
             input.dispatchEvent(new Event('change', { bubbles: true }));
             injected = true;
         }
     }
 
     await delay(1500);
-    // Handle Crop/Save Dialog
-    for (let i = 0; i < 5; i++) {
-        let clicked = false;
-        for (const trig of selectors.upload.cropSaveTriggers) {
-            if (await deepClickByText(trig)) {
-                clicked = true;
-                break;
-            }
+    for (let i = 0; i < 10; i++) {
+        if (await clickByText('ครอบตัดและบันทึก') || await clickByText('Crop and save')) {
+            return true;
         }
-        if (clicked) break;
         await delay(500);
     }
 
     return injected;
 };
 
-// --- Check Workspace ---
-const isInWorkspace = (selectors: AutomationSelectors): boolean => {
-    const all = getAllElementsDeep();
-    return all.some(el => {
-        const txt = el.textContent || '';
-        return selectors.workspace.imageTabTriggers.includes(txt) && el.tagName !== 'SCRIPT' && el.tagName !== 'STYLE';
-    });
-};
-
-const switchToImageTab = async (selectors: AutomationSelectors): Promise<boolean> => {
-    for (const trig of selectors.workspace.imageTabTriggers) {
-        if (await deepClickByText(trig)) return true;
+// --- Helper: Check if we are in Workspace ---
+const isInWorkspace = (): boolean => {
+    // Look for "Image" / "รูปภาพ" tab which indicates workspace
+    const tabs = document.querySelectorAll('button, div[role="tab"], span');
+    for (const tab of tabs) {
+        if (tab.textContent?.includes('รูปภาพ') || tab.textContent?.includes('Image')) {
+            return true;
+        }
     }
     return false;
 };
 
-const fillPromptAndGenerate = async (prompt: string, selectors: AutomationSelectors): Promise<boolean> => {
-    const all = getAllElementsDeep();
-    const textarea = all.find(el => el.tagName === 'TEXTAREA') as HTMLTextAreaElement;
+// --- Switch to Image Tab ---
+const switchToImageTab = async (): Promise<boolean> => {
+    console.log("🖼️ Switching to Image Tab...");
+    return await clickByText('รูปภาพ', 'button');
+};
+
+// --- Fill Prompt ---
+const fillPromptAndGenerate = async (prompt: string): Promise<boolean> => {
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
     if (textarea) {
         textarea.value = prompt;
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
         await delay(500);
-
-        const buttons = all.filter(el => el.tagName === 'BUTTON');
+        const buttons = Array.from(document.querySelectorAll('button'));
         for (const btn of buttons.reverse()) {
-            if (btn.innerHTML.includes('<svg') && btn.clientWidth < 80) {
-                (btn as HTMLElement).click();
+            if (btn.querySelector('svg') && btn.clientWidth < 60) {
+                btn.click();
                 return true;
             }
         }
@@ -154,47 +133,38 @@ const fillPromptAndGenerate = async (prompt: string, selectors: AutomationSelect
     return false;
 };
 
-const waitForGenerationComplete = async (selectors: AutomationSelectors): Promise<boolean> => {
-    const start = Date.now();
-    while (Date.now() - start < 180000) {
-        const bodyText = document.body.innerText;
-        if (bodyText.includes('100%')) return true;
-
-        for (const trig of selectors.generation.addToPromptTriggers) {
-            if (await deepClickByText(trig) === true) return true;
-        }
+// --- Wait Logic ---
+const waitForGenerationComplete = async (timeout = 180000): Promise<boolean> => {
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeout) {
+        const percentMatch = document.body.innerText.match(/(\d+)%/);
+        if (percentMatch && parseInt(percentMatch[1]) >= 100) return true;
+        if (Array.from(document.querySelectorAll('*')).some(el => el.textContent?.includes('เพิ่มไปยังพรอมต์'))) return true;
         await delay(2000);
-    }
-    // Final check
-    const all = getAllElementsDeep();
-    return all.some(el => {
-        const txt = el.textContent || '';
-        return selectors.generation.addToPromptTriggers.some(t => txt.includes(t));
-    });
-};
-
-const clickOnGeneratedImage = async (): Promise<boolean> => {
-    const all = getAllElementsDeep();
-    const images = all.filter(el => el.tagName === 'IMG') as HTMLImageElement[];
-    for (const img of images) {
-        if (img.width > 200 && img.height > 200) {
-            img.click();
-            if (img.parentElement) img.parentElement.click();
-            return true;
-        }
     }
     return false;
 };
 
-const waitForVideoComplete = async (): Promise<string | null> => {
-    const start = Date.now();
-    while (Date.now() - start < 300000) {
-        const all = getAllElementsDeep();
-        const v = all.find(el => el.tagName === 'VIDEO') as HTMLVideoElement;
+const waitForVideoComplete = async (timeout = 300000): Promise<string | null> => {
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeout) {
+        const v = document.querySelector('video');
         if (v && v.src && v.src.length > 50) return v.src;
         await delay(5000);
     }
     return null;
+};
+
+const clickOnGeneratedImage = async (): Promise<boolean> => {
+    const images = document.querySelectorAll('img');
+    for (const img of images) {
+        if (img.width > 200 && img.height > 200) {
+            const parent = img.closest('button, a, [role="button"], div');
+            if (parent) (parent as HTMLElement).click();
+            return true;
+        }
+    }
+    return false;
 };
 
 // ========== MAIN PIPELINE ==========
@@ -211,95 +181,147 @@ export const runTwoStagePipeline = async (config: PipelineConfig): Promise<{
     videoUrl?: string;
     error?: string;
 }> => {
-    console.log("🚀 Starting Pipeline - REMOTE SELECTOR EDITION");
+    console.log("🚀 Starting Pipeline - Force New Project Check");
 
     try {
-        // Initialize Config
-        const configService = RemoteConfigService.getInstance();
-        await configService.init(); // Uses default or previously cached
-        const selectors = configService.getSelectors();
+        console.log("👀 Checking State...");
 
-        console.log("👀 Deep Checking State...");
+        // 1. Check if already in workspace
+        let inWorkspace = isInWorkspace();
 
-        let inWorkspace = isInWorkspace(selectors);
         if (!inWorkspace) {
-            console.log("ℹ️ Not in workspace. Deep searching for 'New Project'...");
+            console.log("ℹ️ Not in workspace. Must find 'New Project'...");
+            let clicked = false;
 
-            for (let i = 0; i < 15; i++) {
-                let clicked = false;
-                for (const kw of selectors.dashboard.newProjectTriggers) {
-                    if (await deepClickByText(kw)) {
+            // Loop until we get in, or timeout (try for 10 seconds)
+            for (let attempt = 0; attempt < 10; attempt++) {
+                // STRATEGY: Text Search
+                const dashboardKeywords = ['โปรเจ็กต์ใหม่', 'New project', 'Start new', 'Pro', 'สร้าง', 'ใหม่'];
+                for (const kw of dashboardKeywords) {
+                    const elements = Array.from(document.querySelectorAll('*')).filter(el =>
+                        el.children.length === 0 && el.textContent?.includes(kw)
+                    );
+                    for (const el of elements) {
+                        (el as HTMLElement).click();
+                        // Try Parent (Card)
+                        let parent = el.parentElement;
+                        for (let p = 0; p < 5; p++) {
+                            if (parent) {
+                                try {
+                                    const opts = { bubbles: true, cancelable: true, view: window };
+                                    parent.dispatchEvent(new MouseEvent('click', opts));
+                                } catch (e) { }
+                                parent = parent.parentElement;
+                            }
+                        }
                         clicked = true;
-                        break;
                     }
                 }
 
                 if (clicked) {
-                    console.log("✅ Deep Click sent. Waiting...");
+                    console.log("✅ Click command sent. Waiting...");
                     await delay(3000);
-                    if (isInWorkspace(selectors)) {
+                    if (isInWorkspace()) {
                         console.log("✅ Entered Workspace!");
                         inWorkspace = true;
                         break;
                     }
                 }
 
-                if (!clicked && i > 5) {
-                    console.log("⚠️ Low confidence. Trying fallback coordinates...");
-                    const el = document.elementFromPoint(window.innerWidth / 2, window.innerHeight * 0.75);
-                    if (el) (el as HTMLElement).click();
+                // If text failed, use KEYBOARD FORCE
+                if (!clicked) {
+                    console.log("🎹 Trying Keyboard Tab...");
+                    document.body.focus();
+                    for (let k = 0; k < 10; k++) {
+                        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', bubbles: true }));
+                        await delay(50);
+                        const active = document.activeElement as HTMLElement;
+                        if (active && (active.innerText.includes('ใหม่') || active.innerText.includes('New'))) {
+                            active.click();
+                            active.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
+                            clicked = true;
+                            // Wait to see if it worked
+                            await delay(2000);
+                            if (isInWorkspace()) {
+                                inWorkspace = true;
+                                break;
+                            }
+                        }
+                    }
                 }
 
+                // If still not in workspace, try COORDINATES
+                if (!inWorkspace) {
+                    console.log("⚠️ Coordinate Fallback...");
+                    const points = [
+                        { x: window.innerWidth * 0.5, y: window.innerHeight * 0.75 },
+                        { x: 600, y: 750 },
+                        { x: 950, y: 750 }
+                    ];
+                    for (const p of points) {
+                        const el = document.elementFromPoint(p.x, p.y);
+                        if (el) {
+                            (el as HTMLElement).click();
+                        }
+                    }
+                    await delay(2000);
+                    if (isInWorkspace()) {
+                        inWorkspace = true;
+                        break;
+                    }
+                }
+
+                if (inWorkspace) break;
+                console.log("🔄 Retry finding start button...");
                 await delay(1000);
             }
+        } else {
+            console.log("✅ Already in workspace (Image tab detected).");
         }
 
-        if (!inWorkspace) {
+        // ==================== EXECUTE ====================
+
+        // Final sanity check
+        if (!isInWorkspace() && !inWorkspace) {
+            // Just proceed blindly if we really can't verify, but warn user
             console.warn("⚠️ Could not confirm workspace entry. Proceeding anyway...");
         }
 
-        await switchToImageTab(selectors);
+        await switchToImageTab();
         await delay(1500);
 
-        await uploadSingleImage(config.characterImage, 1, selectors);
+        console.log("📷 Uploading Character...");
+        await uploadSingleImage(config.characterImage, 1);
         await delay(1500);
-        await uploadSingleImage(config.productImage, 2, selectors);
+
+        console.log("📷 Uploading Product...");
+        await uploadSingleImage(config.productImage, 2);
         await delay(1500);
 
         console.log("📝 Generating Image...");
-        await fillPromptAndGenerate(config.imagePrompt, selectors);
+        await fillPromptAndGenerate(config.imagePrompt);
 
-        const genSuccess = await waitForGenerationComplete(selectors);
-        if (!genSuccess) throw new Error("Gen Timeout");
+        const genSuccess = await waitForGenerationComplete();
+        if (!genSuccess) throw new Error("Image Gen Timeout");
 
         await clickOnGeneratedImage();
         await delay(1500);
 
-        // Transition to Video
-        for (const trig of selectors.generation.addToPromptTriggers) {
-            await deepClickByText(trig);
-        }
+        await clickByText('เพิ่มไปยังพรอมต์');
         await delay(1000);
-
-        let switchedToVideo = false;
-        for (const trig of selectors.generation.videoTabTriggers) {
-            if (await deepClickByText(trig)) {
-                switchedToVideo = true;
-                break;
-            }
-        }
+        await clickByText('ส่วนผสมในวิดีโอ') || await clickByText('Video composition');
         await delay(2000);
 
         console.log("📝 Generating Video...");
-        await fillPromptAndGenerate(config.videoPrompt, selectors);
+        await fillPromptAndGenerate(config.videoPrompt);
 
         const videoUrl = await waitForVideoComplete();
-        if (!videoUrl) throw new Error("Video Timeout");
+        if (!videoUrl) throw new Error("Video Gen Timeout");
 
         return { success: true, videoUrl };
 
     } catch (error: any) {
-        console.error("Deep Pipeline Error:", error);
+        console.error("Pipeline Error:", error);
         return { success: false, error: error.message };
     }
 };
