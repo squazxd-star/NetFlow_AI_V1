@@ -100,7 +100,7 @@ const uploadSingleImage = async (base64Image: string, imageIndex: number, select
                 return true;
             }
         } else {
-            console.log("�️ Inputs not found, trying fallback clicks to reveal...");
+            console.log("️ Inputs not found, trying fallback clicks to reveal...");
             // Try clicking "Upload" buttons to trigger input existence
             if (await clickByText(selectors.upload.uploadButtonTriggers)) {
                 continue; // Retry loop after click
@@ -130,136 +130,154 @@ const switchToImageTab = async (selectors: AutomationSelectors): Promise<boolean
     return await clickByText(selectors.workspace.imageTabTriggers, 'button');
 };
 
-// --- 3. Robust Prompt Fill & Generate ---
+// --- Fill Prompt ---
 const fillPromptAndGenerate = async (prompt: string): Promise<boolean> => {
-    console.log(`📝 [Attempting] Start Prompt Injection: "${prompt.substring(0, 20)}..."`);
-
     if (!prompt) {
-        console.error("❌ [Error] Prompt is empty! Cannot generate.");
+        console.error("❌ No prompt provided to fillPromptAndGenerate");
         return false;
     }
+    console.log(`📝 Attempting to fill prompt (${prompt.length} chars)...`);
 
-    // --- Phase 1: Find Input with Retry (20s timeout total) ---
     let inputEl: HTMLElement | null = null;
-    let foundType = "";
 
-    for (let attempt = 1; attempt <= 10; attempt++) {
-        console.log(`🔎 [Search Input] Attempt ${attempt}/10...`);
-
-        // A. Standard Inputs (Visible only)
+    // RETRY LOOP 1: FIND INPUT (5 Attempts)
+    for (let attempt = 1; attempt <= 5; attempt++) {
+        // 1. Try standard textarea/input
         const inputs = findAllElementsDeep('textarea, input[type="text"]');
-        const visibleInput = inputs.filter(el => (el as HTMLElement).clientHeight > 10).pop(); // Get last one
+        const visibleInputs = inputs.filter(el => (el as HTMLElement).clientHeight > 0);
 
-        // B. Content Editable (Rich Text)
-        const editables = findAllElementsDeep('div[contenteditable="true"], [role="textbox"], span[data-placeholder]');
-        const matchEditable = editables.find(el => {
-            const txt = (el.textContent || '').toLowerCase();
-            const placeholder = (el.getAttribute('data-placeholder') || '').toLowerCase();
-            const knownPlaceholders = [
-                'สร้างวิดีโอที่มีข้อความ', 'type a prompt', 'describe', 'create video',
-                'พิมพ์ในช่องพร้อมต์เพื่อเริ่มต้น', 'describe your video', 'change video to'
-            ];
-            return knownPlaceholders.some(p => txt.includes(p) || placeholder.includes(p));
-        });
+        if (visibleInputs.length > 0) {
+            // Usually the last one is the chat input in modern chat UIs
+            inputEl = visibleInputs[visibleInputs.length - 1] as HTMLElement;
+        }
 
-        if (visibleInput) {
-            inputEl = visibleInput as HTMLElement;
-            foundType = "Standard Input";
-            break;
-        } else if (matchEditable) {
-            inputEl = matchEditable as HTMLElement;
-            foundType = "ContentEditable";
+        // 2. Try contenteditable div if no standard input found
+        if (!inputEl) {
+            const editables = findAllElementsDeep('div[contenteditable="true"], [role="textbox"], span[data-placeholder]');
+            const isPromptBox = (el: Element) => {
+                const txt = (el.textContent || '').toLowerCase();
+                const placeholder = (el.getAttribute('data-placeholder') || '').toLowerCase();
+                const knownPlaceholders = [
+                    'สร้างวิดีโอที่มีข้อความ', 'type a prompt', 'describe', 'create video',
+                    'พิมพ์ในช่องพร้อมต์เพื่อเริ่มต้น', 'describe your video'
+                ];
+                return knownPlaceholders.some(p => txt.includes(p) || placeholder.includes(p));
+            };
+            const match = editables.find(isPromptBox);
+            if (match) inputEl = match as HTMLElement;
+            else if (editables.length > 0) inputEl = editables[editables.length - 1] as HTMLElement;
+        }
+
+        if (inputEl) {
+            console.log(`✅ Found prompt input on attempt ${attempt}`);
             break;
         }
 
-        await delay(2000); // Wait 2s before retry
+        console.log(`⏳ Attempt ${attempt}: Input not found, waiting...`);
+        await delay(1000);
     }
 
-    if (!inputEl) {
-        console.error("❌ [Error] Input field NOT FOUND after 10 attempts.");
-        return false;
-    }
+    if (inputEl) {
+        console.log(`📝 Found prompt area (${inputEl.tagName}), injecting text...`);
 
-    console.log(`✅ [Found] Input Type: ${foundType} | Tag: ${inputEl.tagName}`);
-
-    // --- Phase 2: Inject Text (Force Mode) ---
-    try {
+        // Focus
         inputEl.focus();
-        await delay(500);
+        await delay(300);
 
-        // Clear existing
+        // STRATEGY: ROBUST INJECTION
+        // 1. Standard Value Assignment
         if (inputEl.tagName === 'TEXTAREA' || inputEl.tagName === 'INPUT') {
-            (inputEl as HTMLInputElement).value = "";
             (inputEl as HTMLInputElement).value = prompt;
         } else {
-            inputEl.innerText = "";
             inputEl.innerText = prompt;
         }
 
-        // Event Storm to ensure UI reacts
-        const events = ['input', 'change', 'keydown', 'keypress', 'keyup'];
-        events.forEach(evt => {
-            inputEl?.dispatchEvent(new Event(evt, { bubbles: true }));
-        });
+        // 2. Events Dispath
+        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+        inputEl.dispatchEvent(new Event('change', { bubbles: true }));
 
-        // Simulate Space key to trigger "Dirty" state
-        inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true }));
+        // 3. Simulate Typing (Critical for UI State)
+        // Type a space and backspace to trigger "dirty" state
+        const opts = { bubbles: true, cancelable: true, view: window };
+        inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Space', code: 'Space', ...opts }));
+        inputEl.dispatchEvent(new InputEvent('input', { data: ' ', inputType: 'insertText', ...opts }));
+        await delay(100);
 
-        console.log("✅ [Injected] Text inserted and events fired.");
-    } catch (e) {
-        console.warn("⚠️ [Warning] Injection glitch:", e);
+        // Validation: Check if text stuck
+        let currentVal = (inputEl as HTMLInputElement).value || inputEl.innerText;
+        if (!currentVal || currentVal.length < 5) {
+            console.warn("⚠️ Text injection might have failed, trying Force Paste...");
+            try {
+                // Determine insertion (modern way)
+                if (document.execCommand) {
+                    document.execCommand('insertText', false, prompt);
+                }
+            } catch (e) { console.error("Paste fallback failed", e); }
+        }
+
+        await delay(1500); // Wait for UI to enable button
+
+        // RETRY LOOP 2: CLICK GENERATE (5 Attempts)
+        for (let attempt = 1; attempt <= 5; attempt++) {
+            console.log(`🚀 Clicking Generate (Attempt ${attempt})...`);
+
+            const buttons = findAllElementsDeep('button, div[role="button"]');
+            let clicked = false;
+
+            // Strategy A: Text Match
+            const generateKeywords = ['generate', 'create', 'run', 'make', 'send', 'submit', 'ส่ง', 'สร้าง'];
+            for (const btn of buttons) {
+                const text = (btn.textContent || '').toLowerCase();
+                const label = (btn.getAttribute('aria-label') || '').toLowerCase();
+                // Check visibility
+                const rect = btn.getBoundingClientRect();
+                if (rect.width === 0 || rect.height === 0) continue;
+
+                if (generateKeywords.some(w => text.includes(w) || label.includes(w))) {
+                    console.log(`🎯 Found Button (Text: ${text || label})`);
+                    (btn as HTMLElement).click();
+                    clicked = true;
+                    break;
+                }
+            }
+
+            // Strategy B: Icon Heuristic (Circle Arrow)
+            if (!clicked) {
+                // Filter for likely icon buttons (small dimensions)
+                const iconButtons = buttons.filter(btn => {
+                    const rect = btn.getBoundingClientRect();
+                    return rect.width > 20 && rect.width < 100 && rect.height > 20 && rect.height < 100;
+                });
+
+                // The send button is usually at the bottom-right relative to input
+                // We'll try the last few buttons found
+                for (const btn of iconButtons.reverse()) {
+                    const isCircle = getComputedStyle(btn).borderRadius.includes('50%');
+                    const hasSvg = btn.querySelector('svg') !== null;
+
+                    if (isCircle || hasSvg) {
+                        console.log("🎯 Found Button (Icon Heuristic)");
+                        (btn as HTMLElement).click();
+                        clicked = true;
+                        break;
+                    }
+                }
+            }
+
+            if (clicked) {
+                // Wait a bit and check if a new message appeared or loading started?
+                // For now we assume success if clicked, but we wait short time effectively
+                await delay(2000);
+                return true;
+            }
+
+            await delay(1000);
+        }
+
+    } else {
+        console.error("❌ CRITICAL: Prompt input not found after all retries.");
+        return false;
     }
-
-    await delay(2000); // Wait for UI to validate input
-
-    // --- Phase 3: Find & Click Generate Button with Retry ---
-    for (let clickAttempt = 1; clickAttempt <= 5; clickAttempt++) {
-        console.log(`🚀 [Search Button] Attempt ${clickAttempt}/5...`);
-
-        // Find all potential buttons
-        const allButtons = findAllElementsDeep('button, div[role="button"]');
-
-        // Filter 1: Text Logic
-        const textMatch = allButtons.find(btn => {
-            const txt = (btn.textContent || '').toLowerCase();
-            const aria = (btn.getAttribute('aria-label') || '').toLowerCase();
-            return ['generate', 'create', 'run', 'make', 'send', 'submit', 'ส่ง', 'สร้าง'].some(k => txt.includes(k) || aria.includes(k));
-        });
-
-        if (textMatch) {
-            console.log(`🎯 [Click] Found by Text: "${textMatch.textContent}"`);
-            (textMatch as HTMLElement).click();
-            return true;
-        }
-
-        // Filter 2: Icon/Shape Heuristic (Circle Arrow)
-        const iconBtn = allButtons.reverse().find(btn => {
-            const w = btn.clientWidth;
-            const h = btn.clientHeight;
-            // Circle-ish and reasonable size for an icon button
-            const isCircle = (Math.abs(w - h) < 10) && (w > 30 && w < 80);
-            const hasSvg = btn.querySelector('svg') !== null;
-            return isCircle || hasSvg; // Broaden search
-        });
-
-        if (iconBtn) {
-            console.log(`🎯 [Click] Found by Icon/Shape (W:${iconBtn.clientWidth} H:${iconBtn.clientHeight})`);
-            (iconBtn as HTMLElement).click();
-            return true;
-        }
-
-        // Fallback: Enter Key
-        if (clickAttempt === 5) {
-            console.log("🎹 [Fallback] Pressing ENTER key...");
-            inputEl.focus();
-            inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
-            return true;
-        }
-
-        await delay(1500);
-    }
-
-    console.error("❌ [Error] Generate button NOT FOUND or NOT CLICKABLE.");
     return false;
 };
 
