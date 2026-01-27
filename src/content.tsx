@@ -7,6 +7,73 @@ import { uploadImageToWeb, fillPrompt, clickButton } from './utils/controls';
 
 console.log('NetFlow AI Content Script Loaded');
 
+// ========== AUTO-CLICK NEW PROJECT ==========
+const autoClickNewProject = async () => {
+    console.log('🔄 Auto-click: Scanning for "New Project" button...');
+    
+    // Wait for page to fully load
+    await new Promise(r => setTimeout(r, 2000));
+    
+    // Check if we're on dashboard (not in workspace)
+    const isWorkspace = document.body.innerText.includes('สร้าง') && 
+                        (document.querySelector('textarea') !== null ||
+                         document.body.innerText.includes('อัพโหลด'));
+    
+    if (isWorkspace) {
+        console.log('📍 Already in workspace, skipping auto-click');
+        return;
+    }
+    
+    // Find the button - target <button> containing "โปรเจ็กต์ใหม่"
+    const allButtons = document.querySelectorAll('button');
+    console.log(`🔍 Found ${allButtons.length} buttons on page`);
+    
+    for (const btn of allButtons) {
+        const text = btn.textContent?.trim() || '';
+        if (text.includes('โปรเจ็กต์ใหม่') || text.includes('New project')) {
+            console.log(`✅ Found target button: "${text}"`);
+            
+            // Get button center coordinates
+            const rect = btn.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            console.log(`📍 Button position: (${centerX}, ${centerY}), size: ${rect.width}x${rect.height}`);
+            
+            // Simulate full click sequence
+            const eventOpts = {
+                bubbles: true,
+                cancelable: true,
+                view: window,
+                clientX: centerX,
+                clientY: centerY,
+                button: 0,
+                buttons: 1
+            };
+            
+            btn.dispatchEvent(new PointerEvent('pointerdown', { ...eventOpts, pointerType: 'mouse' }));
+            btn.dispatchEvent(new MouseEvent('mousedown', eventOpts));
+            btn.dispatchEvent(new PointerEvent('pointerup', { ...eventOpts, pointerType: 'mouse' }));
+            btn.dispatchEvent(new MouseEvent('mouseup', eventOpts));
+            btn.dispatchEvent(new MouseEvent('click', eventOpts));
+            btn.click();
+            
+            console.log('🎯 CLICKED! Waiting for navigation...');
+            return;
+        }
+    }
+    
+    console.warn('⚠️ "New Project" button not found. Buttons on page:');
+    allButtons.forEach((b, i) => console.log(`  ${i}: "${b.textContent?.trim().substring(0, 30)}"`));
+};
+
+// Run auto-click after page loads
+if (document.readyState === 'complete') {
+    autoClickNewProject();
+} else {
+    window.addEventListener('load', autoClickNewProject);
+}
+
 // Create a container for our overlay
 const containerId = 'netflow-ai-overlay-root';
 let rootContainer = document.getElementById(containerId);

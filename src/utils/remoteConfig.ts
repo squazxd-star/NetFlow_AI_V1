@@ -18,18 +18,29 @@ export interface AutomationSelectors {
 
 export const DEFAULT_CONFIG: AutomationSelectors = {
     dashboard: {
-        newProjectTriggers: ['โปรเจ็กต์ใหม่', 'New project', 'Start new', 'Pro', 'สร้าง', 'ใหม่']
+        newProjectTriggers: [
+            'โปรเจ็กต์ใหม่',
+            '+ โปรเจ็กต์ใหม่',
+            'New project',
+            '+ New project',
+            'Start new',
+            'Create new',
+            'สร้างโปรเจ็กต์',
+            'สร้างใหม่',
+            'เริ่มโปรเจ็กต์',
+            'ใหม่'
+        ]
     },
     workspace: {
-        imageTabTriggers: ['รูปภาพ', 'Image']
+        imageTabTriggers: ['รูปภาพ', 'Image', 'Images', 'ภาพ']
     },
     upload: {
-        uploadButtonTriggers: ['อัพโหลด', 'Upload'],
-        cropSaveTriggers: ['บันทึก', 'Save', 'Done', 'ครอบตัด', 'Crop']
+        uploadButtonTriggers: ['อัพโหลด', 'Upload', 'เพิ่มรูป', 'Add image', '+'],
+        cropSaveTriggers: ['บันทึก', 'Save', 'Done', 'ครอบตัด', 'Crop', 'ครอบตัดและบันทึก', 'Crop and save', 'ตกลง', 'OK']
     },
     generation: {
-        addToPromptTriggers: ['เพิ่มไปยังพรอมต์', 'Add to prompt'],
-        videoTabTriggers: ['ส่วนผสมในวิดีโอ', 'Video', 'Video mix']
+        addToPromptTriggers: ['เพิ่มไปยังพรอมต์', 'Add to prompt', 'เพิ่มไปยัง', 'Add to'],
+        videoTabTriggers: ['ส่วนผสมในวิดีโอ', 'Video', 'Video mix', 'วิดีโอ', 'ผสมวิดีโอ']
     }
 };
 
